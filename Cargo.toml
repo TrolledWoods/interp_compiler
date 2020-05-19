@@ -1,0 +1,8 @@
+[package]
+name = "interp_compiler"
+version = "0.1.0"
+authors = ["John Hörnvall <john.minecraft@hotmail.se>"]
+edition = "2018"
+
+[dependencies]
+lazy_static = "1.4.0"
