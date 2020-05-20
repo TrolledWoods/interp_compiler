@@ -1,4 +1,4 @@
-use crate::TinyString;
+use crate::prelude::*;
 use std::ops::Range;
 
 #[derive(Debug, Clone, Copy, PartialEq)]

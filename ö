@@ -2,7 +2,8 @@ use std::path::Path;
 use std::io;
 use std::str::Chars;
 use std::collections::VecDeque;
-use crate::prelude::*;
+use crate::parser::Pos;
+use crate::TinyString;
 
 pub type LexingResult<T> = Result<T, Error>;
 
@@ -52,7 +53,6 @@ impl From<Number> for TokenKind {
     }
 }
 
-#[derive(Debug)]
 pub struct Lexer<'a> {
     file: TinyString,
     source: Chars<'a>,
