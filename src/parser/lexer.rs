@@ -123,18 +123,43 @@ fn read_token(
     }
 
     let start = *pos;
-    for (name, token_kind) in RESERVED_STRINGS.iter() {
-        if chars.as_str().starts_with(name) {
-            skip_n_chars(chars, pos, name.len());
 
-            let end = *pos;
-            return Ok(Token {
-                pos: Pos {
-                    start, end, file,
-                },
-                kind: token_kind.clone(),
-            });
+    match chars.next() {
+        Some(c) if c.is_alphabetic() => {
+            for (name, token_kind) in RESERVED_WORDS {
+                if chars.as_str().starts_with(name) {
+                    let after = &chars.as_str()[name.len()..];
+                    match after.chars().next() {
+                        Some(c) 
+                            if c.is_alphanumeric() 
+                            || c == '_'
+                        => (),
+                        _ => {
+                            let start = *pos;
+                            skip_n_chars(chars, pos, name.len());
+                            println!("{}", name);
+                            return Ok(Token {
+                                pos: Pos::new(file, start, *pos),
+                                kind: token_kind.clone(),
+                            });
+                        },
+                    }
+                }
+            }
         }
+        Some(c) => {
+            for (name, token_kind) in RESERVED_CHARACTERS {
+                if chars.as_str().starts_with(name) {
+                    let start = *pos;
+                    skip_n_chars(chars, pos, name.len());
+                    return Ok(Token {
+                        pos: Pos::new(file, start, *pos),
+                        kind: token_kind.clone(),
+                    });
+                }
+            }
+        }
+        None => return Err(Error::EndOfFile),
     }
 
     match peek_chars(chars, 0) {
@@ -351,12 +376,34 @@ fn increment_pos(
     }
 }
 
+
+/// Alphbetic words.
+const RESERVED_WORDS: &[(&str, TokenKind)] = {
+    use TokenKind::*;
+    &[
+        ("fn",   Keyword("fn")),
+        ("mod",  Keyword("mod")),
+        ("type", Keyword("type")),
+    ]
+};
+
 // TODO: Optimize this by making some tree
 // structure that allows for more efficient
 // tokenization of things(but remember to
 // profile it too, please!)
-/// Reserved words that directly map to tokens
-const RESERVED_STRINGS: &[(&str, TokenKind)] = { 
+/// Non alphabetic reserved words that directly map to tokens.
+///
+/// The difference between this and ``RESERVED_WORDS``,
+/// is that words cannot be joined together with other words,
+/// while these special tokens can be joined together with
+/// other special tokens.
+///
+/// Example: ``for_blah : f32 = 0.4;`` is a valid statement,
+/// because ``for_blah`` is a single identifier, not ``for`` then
+/// ``_blah``. ``x +- 3`` is also valid, but here because
+/// ``+-`` is turned into ``+`` and ``-``. We need both of these
+/// different behaviours, so we cannot put them into the same list.
+const RESERVED_CHARACTERS: &[(&str, TokenKind)] = { 
     use TokenKind::*;
     &[
         // Operators
@@ -377,12 +424,6 @@ const RESERVED_STRINGS: &[(&str, TokenKind)] = {
         (":",    Special(":")),
         (";",    Special(";")),
         (",",    Special(",")),
-        // TODO: Make word based reserved strings
-        // their own things, because they can't be next
-        // to other strings
-        ("fn",   Keyword("fn")),
-        ("mod",  Keyword("mod")),
-        ("type", Keyword("type")),
 
         // Brackets
         ("(",    Bracket('(')),

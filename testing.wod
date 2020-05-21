@@ -1,3 +1,1 @@
-// Type is used to not make it a type alias,
-// but its own type.
-type Vec3d<T> :: [3] T;
+type hello +   
