@@ -9,6 +9,9 @@ mod id;
 mod tiny_string;
 mod parser;
 
+/// Common imports that most things need.
+/// This is to make the imports at the top
+/// of modules less cluttered.
 mod prelude {
     pub use crate::tiny_string::TinyString;
     pub use crate::id::{ Id, IdBuilder };
@@ -16,4 +19,12 @@ mod prelude {
 }
 
 fn main() {
+    let ids = id::IdBuilder::new();
+    parser::parse_file(
+        "testing.wod",
+        "testing".into(),
+        &ids,
+        ids.create_id(),
+        |unit| println!("{:#?}", unit),
+    ).unwrap();
 }

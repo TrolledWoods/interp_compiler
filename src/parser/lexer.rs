@@ -6,7 +6,7 @@ use crate::prelude::*;
 
 pub type LexingResult<T> = Result<T, Error>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Error {
     EndOfFile,
     UnknownCharacter(Pos, char),
@@ -24,12 +24,8 @@ pub struct Token {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     Bracket(char),
-    /// A closing bracket is the bracket, but reversed.
-    /// So ) becomes ClosingBracket('(').
-    /// This is to allow bracket definitions to be a single
-    /// character, instead of several. i.e. "I want a
-    /// parenthesis block" becomes '(', instead of
-    /// starting_char: '(', ending_char: ')'
+    /// Closing brackets are reversed, i.e.
+    /// a ``')'`` becomes ``ClosingBracket('(')``
     ClosingBracket(char),
     Identifier(TinyString),
     Operator(&'static str),
@@ -38,7 +34,10 @@ pub enum TokenKind {
     Keyword(&'static str),
     IntLiteral(u128),
     FloatLiteral(f64),
-    StringLiteral(String),
+    /// Maybe use a ``Arc<String>`` here? Or have a 
+    /// ``BigStringLiteral(Arc<String>)`` for really 
+    /// long strings.
+    StringLiteral(TinyString),
 }
 
 impl From<Number> for TokenKind {
@@ -76,12 +75,12 @@ impl Lexer<'_> {
     pub fn peek_token<'a>(
         &'a mut self,
         n_forward: usize,
-    ) -> &'a Result<Token, Error> {
+    ) -> LexingResult<Token> {
         if self.cached_tokens.get(n_forward).is_some() {
-            return &self.cached_tokens[n_forward];
+            return self.cached_tokens[n_forward].clone();
         }
 
-        while self.cached_tokens.len() < n_forward {
+        while self.cached_tokens.len() <= n_forward {
             self.cached_tokens.push_back(read_token(
                 &mut self.source, 
                 self.file,
@@ -89,12 +88,12 @@ impl Lexer<'_> {
             ));
         }
 
-        self.cached_tokens.get(n_forward).unwrap()
+        self.cached_tokens.get(n_forward).unwrap().clone()
     }
 
     pub fn next_token(
         &mut self,
-    ) -> Result<Token, Error> {
+    ) -> LexingResult<Token> {
         self.cached_tokens
             .pop_front()
             .unwrap_or_else(|| {
@@ -113,6 +112,15 @@ fn read_token(
     pos: &mut (usize, usize),
 ) -> Result<Token, Error> {
     skip_whitespace(chars, pos);
+
+    while chars.as_str().starts_with("//") {
+        // Skip characters until the next newline
+        while let Some(c) = chars.next() {
+            if c == '\n' { break; }
+        }
+
+        skip_whitespace(chars, pos);
+    }
 
     let start = *pos;
     for (name, token_kind) in RESERVED_STRINGS.iter() {
@@ -364,10 +372,17 @@ const RESERVED_STRINGS: &[(&str, TokenKind)] = {
         ("*",    Operator("*")),
         ("[-]",  Special("[-]")),
         ("[?]",  Special("[?]")),
+        ("<",    Special("<")),
+        (">",    Special(">")),
         (":",    Special(":")),
         (";",    Special(";")),
         (",",    Special(",")),
+        // TODO: Make word based reserved strings
+        // their own things, because they can't be next
+        // to other strings
         ("fn",   Keyword("fn")),
+        ("mod",  Keyword("mod")),
+        ("type", Keyword("type")),
 
         // Brackets
         ("(",    Bracket('(')),
