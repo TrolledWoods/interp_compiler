@@ -115,8 +115,8 @@ fn read_token(
 
     while chars.as_str().starts_with("//") {
         // Skip characters until the next newline
-        while let Some(c) = chars.next() {
-            if c == '\n' { break; }
+        'inner: while let Some(c) = chars.next() {
+            if c == '\n' { break 'inner; }
         }
 
         skip_whitespace(chars, pos);
@@ -124,22 +124,30 @@ fn read_token(
 
     let start = *pos;
 
-    match chars.next() {
+    match chars.clone().next() {
         Some(c) if c.is_alphabetic() => {
             for (name, token_kind) in RESERVED_WORDS {
                 if chars.as_str().starts_with(name) {
-                    let after = &chars.as_str()[name.len()..];
-                    match after.chars().next() {
+                    match chars.as_str()[name.len()..]
+                               .chars().next() {
                         Some(c) 
                             if c.is_alphanumeric() 
                             || c == '_'
                         => (),
                         _ => {
                             let start = *pos;
-                            skip_n_chars(chars, pos, name.len());
+                            skip_n_chars(
+                                chars, 
+                                pos, 
+                                name.len(),
+                            );
                             println!("{}", name);
                             return Ok(Token {
-                                pos: Pos::new(file, start, *pos),
+                                pos: Pos::new(
+                                         file, 
+                                         start, 
+                                         *pos,
+                                     ),
                                 kind: token_kind.clone(),
                             });
                         },
@@ -230,7 +238,11 @@ fn read_identifier(
     skip_n_chars(chars, pos, n_chars);
 
     let end = *pos;
-    let length = length.expect("Don't call the read_identifier function when you don't have an identifier");
+    let length = length.expect(
+        "Don't call the read_identifier function when
+        you don't have an identifier"
+    );
+
     Ok((
         Pos::new(file, start, end),
         string[..=length].into()
@@ -354,14 +366,22 @@ fn skip_whitespace(
 ) {
     let mut n_whitespace_chars = 0;
     let mut chars_copy = chars.clone();
-    while match chars_copy.next() {
-        Some(c) if c.is_whitespace() => true,
-        _ => false,
-    } {
-        n_whitespace_chars += 1;
+    loop {
+        match chars_copy.next() {
+            Some(c) if c.is_whitespace() => 
+                n_whitespace_chars += 1,
+            _ => break,
+        }
     }
 
     skip_n_chars(chars, pos, n_whitespace_chars);
+}
+
+/// Only increments the character of the position.
+fn increment_char(
+    pos: (usize, usize),
+) -> (usize, usize) {
+    (pos.0, pos.1 + 1)
 }
 
 /// Increments the position.
@@ -384,6 +404,9 @@ const RESERVED_WORDS: &[(&str, TokenKind)] = {
         ("fn",   Keyword("fn")),
         ("mod",  Keyword("mod")),
         ("type", Keyword("type")),
+        ("for", Keyword("for")),
+        ("if", Keyword("if")),
+        ("else", Keyword("else")),
     ]
 };
 
@@ -489,7 +512,7 @@ w
         );
 
         let token = lexer.next_token().unwrap();
-        assert_eq!(token.pos, (0, 0)..(0, 5));
+        // assert_eq!(token.pos, (0, 0)..(0, 5));
         assert_eq!(
             TokenKind::IntLiteral(5),
             token.kind,
@@ -516,33 +539,57 @@ w
     }
 
     #[test]
-    fn lex_keywords() {
+    fn lex_identifier() {
+        let mut lexer = Lexer::new(
+            "hello".into(), 
+            "for_+max",
+        );
+
+        let token = lexer.next_token().unwrap();
+        assert_eq!(
+            token.kind, 
+            TokenKind::Identifier("for_".into())
+        );
+        assert_eq!(token.pos, (0, 0)..(0, 4));
+
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Operator("+"));
+        assert_eq!(token.pos, (0, 4)..(0, 5));
+
+        let token = lexer.next_token().unwrap();
+        assert_eq!(
+            token.kind, 
+            TokenKind::Identifier("max".into())
+        );
+        assert_eq!(token.pos, (0, 5)..(0, 8));
+    }
+
+    #[test]
+    fn lex_keyword() {
+        let mut lexer = Lexer::new(
+            "hello".into(), 
+            "for,if",
+        );
+
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Keyword("for"));
+        assert_eq!(token.pos, (0, 0)..(0, 3));
+
+        let token = lexer.next_token().unwrap();
+        assert_eq!(token.kind, TokenKind::Special(","));
+        assert_eq!(token.pos, (0, 3)..(0, 4));
+    }
+
+    #[test]
+    fn lex_special_characters() {
         let mut lexer = Lexer::new("hello".into(), "+=[]");
 
         let token = lexer.next_token().unwrap();
-        assert!(matches!(
-            Token {
-                pos: Pos {
-                    start: (0, 0), 
-                    end: (0, 2),
-                    file: "hello".into(),
-                },
-                kind: TokenKind::AssignOperator("+")
-            },
-            token
-        ), "First token doesn't match");
+        assert_eq!(token.kind, TokenKind::AssignOperator("+"));
+        assert_eq!(token.pos, (0, 0)..(0, 2));
 
         let token = lexer.next_token().unwrap();
-        assert!(matches!(
-            Token {
-                pos: Pos {
-                    start: (0, 2), 
-                    end: (0, 3),
-                    file: "hello".into(),
-                },
-                kind: TokenKind::Bracket('[')
-            },
-            token
-        ), "Second token doesn't match");
+        assert_eq!(token.kind, TokenKind::Bracket('['));
+        assert_eq!(token.pos, (0, 2)..(0, 3));
     }
 }

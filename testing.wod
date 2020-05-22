@@ -1,1 +1,4 @@
-type hello +   
+type<x, y, z> Hello = fn(x: f32, y: f32) -> f64 (
+	let x: f32 = 64;
+	x + 6
+);
