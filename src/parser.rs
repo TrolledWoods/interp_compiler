@@ -6,14 +6,12 @@
 mod lexer;
 
 use crate::prelude::*;
-use std::io::{ Error as IoError };
-use lexer::{ 
-    LexingResult,
-    Error as LexingError, 
-    Token, 
+use crate::tree_structure::prelude::*;
+use lexer::{
+    Error as LexingError, Lexer, LexingResult, Token,
     TokenKind,
-    Lexer,
 };
+use std::io::Error as IoError;
 
 #[derive(Debug)]
 pub enum CodeUnit {
@@ -32,7 +30,7 @@ pub enum CodeUnit {
         namespace: Id,
         pos: Pos,
         name: TinyString,
-        // value: Expression,
+        // value: OwnedTree<E,
     },
     /// Another file that needs to be parsed.
     File {
@@ -66,48 +64,45 @@ impl Parser<'_> {
             Err(Error::InvalidToken {
                 pos: token.pos,
                 got: token.kind,
-                wanted: kind,
                 pattern,
             })
         }
     }
 
-	/// Returns ``Ok(Some(pos))`` and moves to
-	/// the next token if the next token has
-	/// the given kind. Otherwise, it doesn't do
-	/// anything and returns ``Ok(None)``.
-	///
-	/// The only errors are when the Lexer fails
-	/// in some way. The only fail that isn't counted
-	/// is the ``LexingError::EndOfFile``, that returns
-	/// ``Ok(None)`` too.
-	fn try_kind(
-		&mut self,
-		kind: TokenKind,
-	) -> LexingResult<Option<Pos>> {
+    /// Returns ``Ok(Some(pos))`` and moves to
+    /// the next token if the next token has
+    /// the given kind. Otherwise, it doesn't do
+    /// anything and returns ``Ok(None)``.
+    ///
+    /// The only errors are when the Lexer fails
+    /// in some way. The only fail that isn't counted
+    /// is the ``LexingError::EndOfFile``, that returns
+    /// ``Ok(None)`` too.
+    fn try_kind(
+        &mut self,
+        kind: TokenKind,
+    ) -> LexingResult<Option<Pos>> {
         let token = match self.lexer.peek_token(0) {
-			Ok(token) => token,
-			Err(LexingError::EndOfFile) => return Ok(None),
-			Err(err) => return Err(err),
-		};
+            Ok(token) => token,
+            Err(LexingError::EndOfFile) => return Ok(None),
+            Err(err) => return Err(err),
+        };
 
         if token.kind == kind {
             Ok(Some(token.pos))
         } else {
-			Ok(None)
+            Ok(None)
         }
-	}
+    }
 
     fn peek_token(
-        &mut self, 
+        &mut self,
         n_tokens_forward: usize,
     ) -> LexingResult<Token> {
         self.lexer.peek_token(n_tokens_forward)
     }
 
-    fn next_token(
-        &mut self, 
-    ) -> LexingResult<Token> {
+    fn next_token(&mut self) -> LexingResult<Token> {
         self.lexer.next_token()
     }
 }
@@ -137,61 +132,83 @@ fn parse_namespace(
     namespace_id: u32,
     inside_brackets: bool,
 ) -> ParsingResult<()> {
-	const PATTERN: &str = "mod { ... namespace items ... }";
+    const PATTERN: &str = "mod { ... namespace items ... }";
     if inside_brackets {
-		parser.kind(
-			TokenKind::Keyword("mod"),
-			PATTERN,
-		);
-        parser.kind(
-            TokenKind::Bracket('{'),
-			PATTERN,
-        );
+        parser.kind(TokenKind::Keyword("mod"), PATTERN);
+        parser.kind(TokenKind::Bracket('{'), PATTERN);
     }
 
-	loop { 
-		if inside_brackets 
-		&& parser.try_kind(
-			TokenKind::ClosingBracket('{'),
-		)?.is_some() {
-			break;
-		}
+    loop {
+        if inside_brackets
+            && parser
+                .try_kind(TokenKind::ClosingBracket('{'))?
+                .is_some()
+        {
+            break;
+        }
 
-		match parse_code_unit(parser, namespace_id) {
-			Ok(unit) => {
-				println!("{:#?}", unit);
-			},
-			Err(Error::Lexer(LexingError::EndOfFile)) => break,
-			Err(err) => return Err(err),
-		} 
-	}
-    
+        match parse_code_unit(parser, namespace_id) {
+            Ok(unit) => {
+                println!("{:#?}", unit);
+            }
+            Err(Error::Lexer(LexingError::EndOfFile)) => {
+                break
+            }
+            Err(err) => return Err(err),
+        }
+    }
+
     if inside_brackets {
-        parser.kind(
-            TokenKind::ClosingBracket('{'),
-			PATTERN,
-        );
+        parser
+            .kind(TokenKind::ClosingBracket('{'), PATTERN);
     }
 
     Ok(())
 }
 
 fn parse_code_unit(
-	parser: &mut Parser,
-	namespace_id: u32,
+    parser: &mut Parser,
+    namespace_id: u32,
 ) -> ParsingResult<String> {
-	// Some modifiers specify special behaviour
-	parser.next_token()?;
-	Ok(format!("Hello world!"))
+
+    Ok(format!("Hello world!"))
+}
+
+pub struct Identifier {
+    pub pos: Pos,
+    pub name: TinyString,
+}
+
+fn parse_identifier(
+    parser: &mut Parser,
+    pattern: &'static str,
+) -> ParsingResult<Identifier> {
+    match parser.next_token()? {
+        Token {
+            kind: TokenKind::Identifier(name),
+            pos,
+        } => Ok(Identifier {
+            pos,
+            name,
+        }),
+        Token {
+            kind,
+            pos,
+        } => Err(Error::InvalidToken {
+            pos,
+            got: kind,
+            pattern,
+        }),
+    }
 }
 
 type ParsingResult<T> = Result<T, Error>;
 
-const CONST_ASSIGN_PATTERN: &str = 
+const CONST_ASSIGN_PATTERN: &str =
     "``[name] :: [constant expression];``";
-const DECLARATION_PATTERN: &str = 
+const DECLARATION_PATTERN: &str =
     "``[name] : (optional)[type] = [expression];``";
-const ASSIGN_PATTERN: &str = 
+const ASSIGN_PATTERN: &str =
     "``[expression] [assign_operator] [expression];``";
 
 #[derive(Debug)]
@@ -199,12 +216,11 @@ pub enum Error {
     Lexer(LexingError),
     Io(IoError),
     InvalidToken {
-        pos: Pos, 
+        pos: Pos,
         got: TokenKind,
-        wanted: TokenKind,
         /// The whole thing that was trying to be parsed.
         pattern: &'static str,
-    }
+    },
 }
 
 impl From<LexingError> for Error {

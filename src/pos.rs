@@ -27,7 +27,7 @@ impl Pos {
     ) -> Pos {
         assert!(
             (start.0 == end.0 && start.1 < end.1)
-            || start.0 < end.0,
+                || start.0 < end.0,
             "Starting point cannot be after the end point"
         );
 
@@ -93,7 +93,6 @@ impl Pos {
 
 impl PartialEq<Range<(usize, usize)>> for Pos {
     fn eq(&self, other: &Range<(usize, usize)>) -> bool {
-        self.start == other.start &&
-        self.end == other.end
+        self.start == other.start && self.end == other.end
     }
 }

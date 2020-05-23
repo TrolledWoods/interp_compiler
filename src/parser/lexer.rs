@@ -1,8 +1,8 @@
-use std::path::Path;
-use std::io;
-use std::str::Chars;
-use std::collections::VecDeque;
 use crate::prelude::*;
+use std::collections::VecDeque;
+use std::io;
+use std::path::Path;
+use std::str::Chars;
 
 pub type LexingResult<T> = Result<T, Error>;
 
@@ -34,8 +34,8 @@ pub enum TokenKind {
     Keyword(&'static str),
     IntLiteral(u128),
     FloatLiteral(f64),
-    /// Maybe use a ``Arc<String>`` here? Or have a 
-    /// ``BigStringLiteral(Arc<String>)`` for really 
+    /// Maybe use a ``Arc<String>`` here? Or have a
+    /// ``BigStringLiteral(Arc<String>)`` for really
     /// long strings.
     StringLiteral(TinyString),
 }
@@ -43,10 +43,8 @@ pub enum TokenKind {
 impl From<Number> for TokenKind {
     fn from(number: Number) -> Self {
         match number {
-            Number::Integer(v) => 
-                TokenKind::IntLiteral(v),
-            Number::Float(v)   => 
-                TokenKind::FloatLiteral(v),
+            Number::Integer(v) => TokenKind::IntLiteral(v),
+            Number::Float(v) => TokenKind::FloatLiteral(v),
         }
     }
 }
@@ -82,7 +80,7 @@ impl Lexer<'_> {
 
         while self.cached_tokens.len() <= n_forward {
             self.cached_tokens.push_back(read_token(
-                &mut self.source, 
+                &mut self.source,
                 self.file,
                 &mut self.pos,
             ));
@@ -91,24 +89,22 @@ impl Lexer<'_> {
         self.cached_tokens.get(n_forward).unwrap().clone()
     }
 
-    pub fn next_token(
-        &mut self,
-    ) -> LexingResult<Token> {
-        self.cached_tokens
-            .pop_front()
-            .unwrap_or_else(|| {
+    pub fn next_token(&mut self) -> LexingResult<Token> {
+        self.cached_tokens.pop_front().unwrap_or_else(
+            || {
                 read_token(
-                    &mut self.source, 
+                    &mut self.source,
                     self.file,
                     &mut self.pos,
                 )
-            })
+            },
+        )
     }
 }
 
 fn read_token(
     chars: &mut Chars,
-    file: TinyString, 
+    file: TinyString,
     pos: &mut (usize, usize),
 ) -> Result<Token, Error> {
     skip_whitespace(chars, pos);
@@ -116,7 +112,9 @@ fn read_token(
     while chars.as_str().starts_with("//") {
         // Skip characters until the next newline
         'inner: while let Some(c) = chars.next() {
-            if c == '\n' { break 'inner; }
+            if c == '\n' {
+                break 'inner;
+            }
         }
 
         skip_whitespace(chars, pos);
@@ -129,28 +127,30 @@ fn read_token(
             for (name, token_kind) in RESERVED_WORDS {
                 if chars.as_str().starts_with(name) {
                     match chars.as_str()[name.len()..]
-                               .chars().next() {
-                        Some(c) 
-                            if c.is_alphanumeric() 
-                            || c == '_'
-                        => (),
+                        .chars()
+                        .next()
+                    {
+                        Some(c)
+                            if c.is_alphanumeric()
+                                || c == '_' =>
+                        {
+                            ()
+                        }
                         _ => {
                             let start = *pos;
                             skip_n_chars(
-                                chars, 
-                                pos, 
+                                chars,
+                                pos,
                                 name.len(),
                             );
                             println!("{}", name);
                             return Ok(Token {
                                 pos: Pos::new(
-                                         file, 
-                                         start, 
-                                         *pos,
-                                     ),
+                                    file, start, *pos,
+                                ),
                                 kind: token_kind.clone(),
                             });
-                        },
+                        }
                     }
                 }
             }
@@ -172,11 +172,8 @@ fn read_token(
 
     match peek_chars(chars, 0) {
         Some(c) if c.is_alphabetic() || c == '_' => {
-            let (ident_pos, name) = read_identifier(
-                chars,
-                file,
-                pos,
-            )?;
+            let (ident_pos, name) =
+                read_identifier(chars, file, pos)?;
 
             return Ok(Token {
                 pos: ident_pos,
@@ -184,25 +181,23 @@ fn read_token(
             });
         }
         Some(c) if c.is_digit(10) || c == '.' => {
-            let (number_pos, number) = read_number(
-                chars,
-                file,
-                pos,
-                true,
-            )?;
+            let (number_pos, number) =
+                read_number(chars, file, pos, true)?;
 
             return Ok(Token {
                 pos: number_pos,
-                kind: number.into()
+                kind: number.into(),
             });
         }
         Some('"') => {
             todo!("String literals!");
         }
-        Some(c) => return Err(Error::UnknownCharacter(
-            Pos::single(file, *pos),
-            c,
-        )),
+        Some(c) => {
+            return Err(Error::UnknownCharacter(
+                Pos::single(file, *pos),
+                c,
+            ))
+        }
         None => return Err(Error::EndOfFile),
     }
 }
@@ -240,12 +235,12 @@ fn read_identifier(
     let end = *pos;
     let length = length.expect(
         "Don't call the read_identifier function when
-        you don't have an identifier"
+        you don't have an identifier",
     );
 
     Ok((
         Pos::new(file, start, end),
-        string[..=length].into()
+        string[..=length].into(),
     ))
 }
 
@@ -269,7 +264,7 @@ fn read_number(
                 float_offset = float_offset.map(|v| v + 1);
 
                 let mut n = number.unwrap_or(0);
-                n = n * base.unwrap_or(10) as u128 
+                n = n * base.unwrap_or(10) as u128
                     + digit as u128;
                 number = Some(n);
             }
@@ -279,11 +274,12 @@ fn read_number(
                     break;
                 }
 
-                let number = number.take().ok_or_else(|| 
-                    Error::BaseBeforeNumber(
-                        Pos::single(file, *pos)
-                    )
-                )?;
+                let number =
+                    number.take().ok_or_else(|| {
+                        Error::BaseBeforeNumber(
+                            Pos::single(file, *pos),
+                        )
+                    })?;
 
                 if !(2..=36).contains(&number) {
                     return Err(Error::BaseOutOfBounds(
@@ -306,31 +302,26 @@ fn read_number(
             }
             (_, _) => break,
         }
-        
+
         n_chars += 1;
     }
 
     skip_n_chars(chars, pos, n_chars);
     let end = *pos;
 
-    let number = number.ok_or_else(||
+    let number = number.ok_or_else(|| {
         Error::ExpectedNumber(Pos::single(file, *pos))
-    )?;
+    })?;
 
     let number = match float_offset {
         Some(offset) => Number::Float(
-            (number as f64) / 
-            (base.unwrap_or(10) as f64).powi(offset)
+            (number as f64)
+                / (base.unwrap_or(10) as f64).powi(offset),
         ),
-        None => Number::Integer(
-            number
-        ),
+        None => Number::Integer(number),
     };
 
-    Ok((
-        Pos::new(file, start, end),
-        number,
-    ))
+    Ok((Pos::new(file, start, end), number))
 }
 
 #[inline(always)]
@@ -354,7 +345,8 @@ fn skip_n_chars(
     n_chars: usize,
 ) {
     for _ in 0..n_chars {
-        let next = chars.next()
+        let next = chars
+            .next()
             .expect("skipped more chars than there are");
         *pos = increment_pos(*pos, next);
     }
@@ -368,8 +360,9 @@ fn skip_whitespace(
     let mut chars_copy = chars.clone();
     loop {
         match chars_copy.next() {
-            Some(c) if c.is_whitespace() => 
-                n_whitespace_chars += 1,
+            Some(c) if c.is_whitespace() => {
+                n_whitespace_chars += 1
+            }
             _ => break,
         }
     }
@@ -378,9 +371,7 @@ fn skip_whitespace(
 }
 
 /// Only increments the character of the position.
-fn increment_char(
-    pos: (usize, usize),
-) -> (usize, usize) {
+fn increment_char(pos: (usize, usize)) -> (usize, usize) {
     (pos.0, pos.1 + 1)
 }
 
@@ -396,13 +387,12 @@ fn increment_pos(
     }
 }
 
-
 /// Alphbetic words.
 const RESERVED_WORDS: &[(&str, TokenKind)] = {
     use TokenKind::*;
     &[
-        ("fn",   Keyword("fn")),
-        ("mod",  Keyword("mod")),
+        ("fn", Keyword("fn")),
+        ("mod", Keyword("mod")),
         ("type", Keyword("type")),
         ("for", Keyword("for")),
         ("if", Keyword("if")),
@@ -426,36 +416,35 @@ const RESERVED_WORDS: &[(&str, TokenKind)] = {
 /// ``_blah``. ``x +- 3`` is also valid, but here because
 /// ``+-`` is turned into ``+`` and ``-``. We need both of these
 /// different behaviours, so we cannot put them into the same list.
-const RESERVED_CHARACTERS: &[(&str, TokenKind)] = { 
+const RESERVED_CHARACTERS: &[(&str, TokenKind)] = {
     use TokenKind::*;
     &[
         // Operators
-        ("+=",   AssignOperator("+")),
-        ("-=",   AssignOperator("-")),
-        ("*=",   AssignOperator("*")),
-        ("/=",   AssignOperator("/")),
-        ("==",   Operator("==")),
-        ("=",    AssignOperator("")),
-        ("/",    Operator("/")),
-        ("+",    Operator("+")),
-        ("-",    Operator("-")),
-        ("*",    Operator("*")),
-        ("[-]",  Special("[-]")),
-        ("[?]",  Special("[?]")),
-        ("<",    Special("<")),
-        (">",    Special(">")),
-        (":",    Special(":")),
-        (";",    Special(";")),
-        (",",    Special(",")),
-
+        ("+=", AssignOperator("+")),
+        ("-=", AssignOperator("-")),
+        ("*=", AssignOperator("*")),
+        ("/=", AssignOperator("/")),
+        ("==", Operator("==")),
+        ("=", AssignOperator("")),
+        ("/", Operator("/")),
+        ("+", Operator("+")),
+        ("-", Operator("-")),
+        ("*", Operator("*")),
+        ("[-]", Special("[-]")),
+        ("[?]", Special("[?]")),
+        ("<", Special("<")),
+        (">", Special(">")),
+        (":", Special(":")),
+        (";", Special(";")),
+        (",", Special(",")),
         // Brackets
-        ("(",    Bracket('(')),
-        (")",    ClosingBracket('(')),
-        ("{",    Bracket('{')),
-        ("}",    ClosingBracket('{')),
-        ("[",    Bracket('[')),
-        ("]",    ClosingBracket('[')),
-    ] 
+        ("(", Bracket('(')),
+        (")", ClosingBracket('(')),
+        ("{", Bracket('{')),
+        ("}", ClosingBracket('{')),
+        ("[", Bracket('[')),
+        ("]", ClosingBracket('[')),
+    ]
 };
 
 // I know all things are not covered by the tests,
@@ -467,11 +456,13 @@ mod tests {
     #[test]
     fn lines() {
         let mut lexer = Lexer::new(
-            "num".into(), r#"
+            "num".into(),
+            r#"
 x
 y z
 w
-"#);
+"#,
+        );
         assert_eq!(
             lexer.next_token().unwrap().pos,
             (1, 0)..(1, 1)
@@ -494,7 +485,7 @@ w
     fn no_errors() {
         let mut lexer = Lexer::new(
             "num".into(),
-            "x := 23.0; y := 15; print(25); [2, 3, 4]"
+            "x := 23.0; y := 15; print(25); [2, 3, 4]",
         );
 
         while match lexer.next_token() {
@@ -506,17 +497,12 @@ w
 
     #[test]
     fn lex_number() {
-        let mut lexer = Lexer::new(
-            "num".into(), 
-            "2b101 23.5 3b21.1",
-        );
+        let mut lexer =
+            Lexer::new("num".into(), "2b101 23.5 3b21.1");
 
         let token = lexer.next_token().unwrap();
         // assert_eq!(token.pos, (0, 0)..(0, 5));
-        assert_eq!(
-            TokenKind::IntLiteral(5),
-            token.kind,
-        );
+        assert_eq!(TokenKind::IntLiteral(5), token.kind,);
 
         let token = lexer.next_token().unwrap();
         assert_eq!(token.pos, (0, 6)..(0, 10));
@@ -530,8 +516,8 @@ w
         assert_eq!(token.pos, (0, 11)..(0, 17));
         if let TokenKind::FloatLiteral(v) = token.kind {
             assert!(
-                (v - (2.0 * 3.0 + 1.0 + 1.0 / 3.0)).abs() 
-                <= 1e-10
+                (v - (2.0 * 3.0 + 1.0 + 1.0 / 3.0)).abs()
+                    <= 1e-10
             );
         } else {
             panic!("Expected float");
@@ -540,14 +526,12 @@ w
 
     #[test]
     fn lex_identifier() {
-        let mut lexer = Lexer::new(
-            "hello".into(), 
-            "for_+max",
-        );
+        let mut lexer =
+            Lexer::new("hello".into(), "for_+max");
 
         let token = lexer.next_token().unwrap();
         assert_eq!(
-            token.kind, 
+            token.kind,
             TokenKind::Identifier("for_".into())
         );
         assert_eq!(token.pos, (0, 0)..(0, 4));
@@ -558,7 +542,7 @@ w
 
         let token = lexer.next_token().unwrap();
         assert_eq!(
-            token.kind, 
+            token.kind,
             TokenKind::Identifier("max".into())
         );
         assert_eq!(token.pos, (0, 5)..(0, 8));
@@ -566,10 +550,8 @@ w
 
     #[test]
     fn lex_keyword() {
-        let mut lexer = Lexer::new(
-            "hello".into(), 
-            "for,if",
-        );
+        let mut lexer =
+            Lexer::new("hello".into(), "for,if");
 
         let token = lexer.next_token().unwrap();
         assert_eq!(token.kind, TokenKind::Keyword("for"));
@@ -585,7 +567,10 @@ w
         let mut lexer = Lexer::new("hello".into(), "+=[]");
 
         let token = lexer.next_token().unwrap();
-        assert_eq!(token.kind, TokenKind::AssignOperator("+"));
+        assert_eq!(
+            token.kind,
+            TokenKind::AssignOperator("+")
+        );
         assert_eq!(token.pos, (0, 0)..(0, 2));
 
         let token = lexer.next_token().unwrap();

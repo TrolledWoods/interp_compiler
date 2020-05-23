@@ -1,4 +1,4 @@
-use std::sync::atomic::{ Ordering, AtomicU32 };
+use std::sync::atomic::{AtomicU32, Ordering};
 
 pub type Id = u32;
 
