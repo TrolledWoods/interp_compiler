@@ -2,6 +2,12 @@ use std::num::NonZeroUsize;
 use std::ops::{ Deref, DerefMut };
 use std::fmt;
 
+pub mod prelude {
+    pub use super::{
+        Tree, OwnedTree, BranchBuilder,
+    };
+}
+
 /// The maximum number of arguments a 
 /// tree node can have.
 pub const MAX_ARGS: usize = 25;
@@ -67,8 +73,8 @@ impl<T> OwnedTree<T> {
         }
     }
 
-    pub fn build(&mut self) -> NodeBuilder<T> {
-        NodeBuilder {
+    pub fn build(&mut self) -> BranchBuilder<T> {
+        BranchBuilder {
             owned: self,
             parent_index: 0,
         }
@@ -89,16 +95,16 @@ impl<T> DerefMut for OwnedTree<T> {
     }
 }
 
-pub struct NodeBuilder<'a, T> {
+pub struct BranchBuilder<'a, T> {
     owned: &'a mut OwnedTree<T>,
     parent_index: usize,
 }
 
-impl<'a, T> NodeBuilder<'a, T> {
+impl<'a, T> BranchBuilder<'a, T> {
     pub fn push_arg<'b>(
         &'b mut self,
         arg: T,
-    ) -> NodeBuilder<'b, T> {
+    ) -> BranchBuilder<'b, T> {
         let contents = &mut self.owned.contents;
         let new_index = contents.len();
 
@@ -138,14 +144,14 @@ impl<'a, T> NodeBuilder<'a, T> {
             }
         }
         
-        NodeBuilder {
+        BranchBuilder {
             owned: &mut self.owned,
             parent_index: new_index,
         }
     }
 }
 
-impl<T> Deref for NodeBuilder<'_, T> {
+impl<T> Deref for BranchBuilder<'_, T> {
     type Target = Tree<T>;
     
     fn deref(&self) -> &Self::Target {
@@ -153,7 +159,7 @@ impl<T> Deref for NodeBuilder<'_, T> {
     }
 }
 
-impl<T> DerefMut for NodeBuilder<'_, T> {
+impl<T> DerefMut for BranchBuilder<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.owned.branch_mut(self.parent_index)
     }
@@ -322,7 +328,7 @@ mod tests {
         let mut args = tree.build();
 
         fn build_more(
-            mut args: NodeBuilder<'_, TestNode>, 
+            mut args: BranchBuilder<'_, TestNode>, 
             n: u64
         ) {
             if n > 100 {
