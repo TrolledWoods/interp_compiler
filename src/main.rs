@@ -1,9 +1,11 @@
 #![allow(dead_code)]
 #![allow(unused)]
+#![feature(test)]
 
 #[macro_use]
 extern crate lazy_static;
 
+mod tree_structure;
 mod pos;
 mod id;
 mod tiny_string;
