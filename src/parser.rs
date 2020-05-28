@@ -4,9 +4,10 @@
 //! ``parse_file`` parses a file, and is the most
 //! common public interface into the module.
 mod lexer;
+mod expression;
 
 use crate::prelude::*;
-use crate::tree_structure::prelude::*;
+use expression::prelude::*;
 use lexer::{
     Error as LexingError, Lexer, LexingResult, Token,
     TokenKind,
@@ -22,15 +23,7 @@ pub enum CodeUnit {
         namespace: Id,
         pos: Pos,
         name: TinyString,
-        // value: Expression,
-    },
-    /// A type that isn't considered
-    /// the same type as the type it wraps.
-    UniqueType {
-        namespace: Id,
-        pos: Pos,
-        name: TinyString,
-        // value: OwnedTree<E,
+        value: Expression,
     },
     /// Another file that needs to be parsed.
     File {

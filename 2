@@ -1,0 +1,16 @@
+// Constants are basically functions. They take constant
+// parameters, and return another value.
+//
+// Types are special, because 
+Vec2(t: type) -> type :: { x: t, y: t, z: t };
+
+main :: fn () (
+	y : type = f32;
+	y = f64;
+
+	// This is possible, because we are in a constant
+	// context.
+	y = { y };
+
+	x : Vec2(f32) = { x: f32, y: f32 };
+);
