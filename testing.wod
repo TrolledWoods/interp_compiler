@@ -1,5 +1,4 @@
-Vec2[T: type] :: { x: T, y: T, z: T };
-Nice :: Vec2[f64];
+Nice :: hello;
 
 // main :: fn () (
 // 	// Maybe add a ``type(add)`` syntax, that allows you to

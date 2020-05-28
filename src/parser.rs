@@ -20,9 +20,11 @@ pub enum CodeUnit {
     /// at compile time. Most things are this type of
     /// value, even type aliases and functions.
     Constant {
-        namespace: Id,
         pos: Pos,
+        namespace: Id,
         name: TinyString,
+        const_args: Vec<(TinyString, Expression)>,
+        type_expression: Option<Expression>,
         value: Expression,
     },
     /// Another file that needs to be parsed.
@@ -74,17 +76,18 @@ impl Parser<'_> {
     fn try_kind(
         &mut self,
         kind: TokenKind,
-    ) -> LexingResult<Option<Pos>> {
+    ) -> LexingResult<bool> {
         let token = match self.lexer.peek_token(0) {
             Ok(token) => token,
-            Err(LexingError::EndOfFile) => return Ok(None),
+            Err(LexingError::EndOfFile) => return Ok(false),
             Err(err) => return Err(err),
         };
 
         if token.kind == kind {
-            Ok(Some(token.pos))
+            self.lexer.next_token().unwrap();
+            Ok(true)
         } else {
-            Ok(None)
+            Ok(false)
         }
     }
 
@@ -122,7 +125,7 @@ pub fn parse_file(
 
 fn parse_namespace(
     parser: &mut Parser,
-    namespace_id: u32,
+    namespace_id: Id,
     inside_brackets: bool,
 ) -> ParsingResult<()> {
     const PATTERN: &str = "mod { ... namespace items ... }";
@@ -132,10 +135,13 @@ fn parse_namespace(
     }
 
     loop {
+        if parser.lexer.at_end_of_file() {
+            break;
+        }
+
         if inside_brackets
             && parser
                 .try_kind(TokenKind::ClosingBracket('{'))?
-                .is_some()
         {
             break;
         }
@@ -143,9 +149,6 @@ fn parse_namespace(
         match parse_code_unit(parser, namespace_id) {
             Ok(unit) => {
                 println!("{:#?}", unit);
-            }
-            Err(Error::Lexer(LexingError::EndOfFile)) => {
-                break
             }
             Err(err) => return Err(err),
         }
@@ -161,10 +164,106 @@ fn parse_namespace(
 
 fn parse_code_unit(
     parser: &mut Parser,
-    namespace_id: u32,
-) -> ParsingResult<String> {
+    namespace_id: Id,
+) -> ParsingResult<CodeUnit> {
+    const CODE_UNIT_PATTERN: &str =
+         "<name>[a: <const_arg>] : <optional type> : <value>;";
 
-    Ok(format!("Hello world!"))
+    // All of these are basically just constants
+    let name = parse_identifier(parser, CODE_UNIT_PATTERN)?;
+
+    // Parse constant arguments
+    if parser.try_kind(TokenKind::Bracket('['))? {
+        // TODO: List parsing function.
+        parser.kind(
+            TokenKind::ClosingBracket(']'), 
+            CODE_UNIT_PATTERN,
+        );
+    }
+
+    // Parse the ``: <optional type> :`` part.
+    parser.kind(
+        TokenKind::Special(":"),
+        CODE_UNIT_PATTERN,
+    )?;
+
+    // If we don't have another ':' immediately after,
+    // then we know we have a type, and then another ':'.
+    let type_expr = if !parser.try_kind(TokenKind::Special(":"))? {
+        let expression = parse_expression(parser, namespace_id)?;
+
+        parser.kind(
+            TokenKind::Special(":"),
+            CODE_UNIT_PATTERN,
+        )?;
+
+        Some(expression)
+    } else {
+        None
+    };
+
+    dbg!(parser.peek_token(0)?);
+    // Parse the actual value.
+    let value = parse_expression(parser, namespace_id)?;
+
+    parser.kind(
+        TokenKind::Special(";"),
+        CODE_UNIT_PATTERN,
+    )?;
+
+    Ok(CodeUnit::Constant {
+        pos: name.pos,
+        namespace: namespace_id,
+        name: name.name,
+        const_args: vec![],
+        type_expression: type_expr,
+        value,
+    })
+}
+
+fn parse_expression(
+    parser: &mut Parser,
+    namespace_id: Id,
+) -> ParsingResult<Expression> {
+    Ok(parse_expression_req(parser, namespace_id, 0)?)
+}
+
+fn parse_expression_req(
+    parser: &mut Parser,
+    namespace_id: Id,
+    priority: u8,
+) -> ParsingResult<Expression> {
+    let value = parse_value(parser, namespace_id)?;
+    Ok(value)
+}
+
+/// Parses function calls, constant calls, identifiers,
+/// unary operators, e.t.c.
+fn parse_value(
+    parser: &mut Parser,
+    namespace_id: Id,
+) -> ParsingResult<Expression> {
+    let (pos, kind) = parser.peek_token(0)?.into_parts();
+
+    let value = match kind {
+        TokenKind::Bracket('(') => {
+            // Block!
+            todo!("Parsing blocks");
+        }
+        TokenKind::Identifier(name) => {
+            parser.next_token()?;
+
+            Expression {
+                pos: Some(pos), 
+                kind: Node::Identifier(namespace_id, name),
+            }
+        }
+        _ => todo!("Error message for invalid value token"),
+    };
+
+    // TODO: Check for brackets here indicating function calls.
+
+    Ok(value)
 }
 
 pub struct Identifier {

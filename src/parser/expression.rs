@@ -26,7 +26,7 @@ pub enum Node {
     Collection(BTreeMap<TinyString, CollectionElement>),
 
     /// Just an identifier.
-    Identifier(u32, TinyString),
+    Identifier(Id, TinyString),
 
     UnaryOperator(&'static str, Box<Expression>),
     BinaryOperator(&'static str, Box<(Expression, Expression)>),
@@ -34,7 +34,7 @@ pub enum Node {
     /// A constant function call, with the given expressions
     /// as input. Maybe make named parameters a thing
     /// later on?
-    ConstCall(u32, TinyString, Vec<Expression>),
+    ConstCall(Id, TinyString, Vec<Expression>),
 
     /// A function call. The first element of the vector
     /// is the function you're calling, which can be an

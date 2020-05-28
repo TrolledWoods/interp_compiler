@@ -21,6 +21,12 @@ pub struct Token {
     pub kind: TokenKind,
 }
 
+impl Token {
+    pub fn into_parts(self) -> (Pos, TokenKind) {
+        (self.pos, self.kind)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     Bracket(char),
@@ -32,6 +38,7 @@ pub enum TokenKind {
     AssignOperator(&'static str),
     Special(&'static str),
     Keyword(&'static str),
+    Primitive(&'static str),
     IntLiteral(u128),
     FloatLiteral(f64),
     /// Maybe use a ``Arc<String>`` here? Or have a
@@ -68,6 +75,14 @@ impl Lexer<'_> {
             pos: (0, 0),
             file,
         }
+    }
+
+    pub fn at_end_of_file(
+        &self,
+    ) -> bool {
+        let mut clone = self.source.clone();
+        skip_whitespace(&mut clone, &mut (0, 0));
+        clone.next().is_none()
     }
 
     pub fn peek_token<'a>(
@@ -397,6 +412,18 @@ const RESERVED_WORDS: &[(&str, TokenKind)] = {
         ("for", Keyword("for")),
         ("if", Keyword("if")),
         ("else", Keyword("else")),
+
+        // Primitive types(yes, these are also reserved words)
+        ("f32", Primitive("f32")),
+        ("f64", Primitive("f64")),
+        ("i8",  Primitive("i8")),
+        ("i16", Primitive("i16")),
+        ("i32", Primitive("i32")),
+        ("i64", Primitive("i64")),
+        ("u8",  Primitive("u8")),
+        ("u16", Primitive("u16")),
+        ("u32", Primitive("u32")),
+        ("u64", Primitive("u64")),
     ]
 };
 
@@ -424,6 +451,8 @@ const RESERVED_CHARACTERS: &[(&str, TokenKind)] = {
         ("-=", AssignOperator("-")),
         ("*=", AssignOperator("*")),
         ("/=", AssignOperator("/")),
+        ("<=", Operator("<=")),
+        (">=", Operator(">=")),
         ("==", Operator("==")),
         ("=", AssignOperator("")),
         ("/", Operator("/")),
@@ -432,8 +461,8 @@ const RESERVED_CHARACTERS: &[(&str, TokenKind)] = {
         ("*", Operator("*")),
         ("[-]", Special("[-]")),
         ("[?]", Special("[?]")),
-        ("<", Special("<")),
-        (">", Special(">")),
+        ("<", Operator("<")),
+        (">", Operator(">")),
         (":", Special(":")),
         (";", Special(";")),
         (",", Special(",")),
