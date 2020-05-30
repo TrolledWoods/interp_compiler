@@ -53,6 +53,7 @@ impl Parser<'_> {
         pattern: &'static str,
     ) -> ParsingResult<Pos> {
         let token = self.lexer.next_token()?;
+
         if token.kind == kind {
             Ok(token.pos)
         } else {
@@ -146,7 +147,7 @@ fn parse_namespace(
             break;
         }
 
-        match parse_code_unit(parser, namespace_id) {
+        match parse_constant(parser, namespace_id) {
             Ok(unit) => {
                 println!("{:#?}", unit);
             }
@@ -162,29 +163,29 @@ fn parse_namespace(
     Ok(())
 }
 
-fn parse_code_unit(
+fn parse_constant(
     parser: &mut Parser,
     namespace_id: Id,
 ) -> ParsingResult<CodeUnit> {
-    const CODE_UNIT_PATTERN: &str =
+    const PATTERN: &str =
          "<name>[a: <const_arg>] : <optional type> : <value>;";
 
     // All of these are basically just constants
-    let name = parse_identifier(parser, CODE_UNIT_PATTERN)?;
+    let name = parse_identifier(parser, PATTERN)?;
 
     // Parse constant arguments
     if parser.try_kind(TokenKind::Bracket('['))? {
         // TODO: List parsing function.
         parser.kind(
             TokenKind::ClosingBracket(']'), 
-            CODE_UNIT_PATTERN,
+            PATTERN,
         );
     }
 
     // Parse the ``: <optional type> :`` part.
     parser.kind(
         TokenKind::Special(":"),
-        CODE_UNIT_PATTERN,
+        PATTERN,
     )?;
 
     // If we don't have another ':' immediately after,
@@ -194,7 +195,7 @@ fn parse_code_unit(
 
         parser.kind(
             TokenKind::Special(":"),
-            CODE_UNIT_PATTERN,
+            PATTERN,
         )?;
 
         Some(expression)
@@ -202,13 +203,12 @@ fn parse_code_unit(
         None
     };
 
-    dbg!(parser.peek_token(0)?);
     // Parse the actual value.
     let value = parse_expression(parser, namespace_id)?;
 
     parser.kind(
         TokenKind::Special(";"),
-        CODE_UNIT_PATTERN,
+        PATTERN,
     )?;
 
     Ok(CodeUnit::Constant {

@@ -1,27 +1,2 @@
-Nice :: hello;
-
-// main :: fn () (
-// 	// Maybe add a ``type(add)`` syntax, that allows you to
-// 	// add v-table items to a type, so that it has to implement
-// 	// certain properties. Not sure on that, though.
-// 	y : type = f32;
-// 	y = f64;
-// 	y = Vec2[f32];
-// 
-// 	// Here, this is not allowed.
-// 	// Only constant parts of the program can create
-// 	// new types(that's because we cannot create new type id:s
-// 	// at runtime).
-// 	//
-// 	// If this were a const function however, this would
-// 	// be allowed.
-// 	// 
-// 	// y = { y };
-// 
-// 	// This would be allowed however,
-// 	// because the type is only in a nonconstant
-// 	// context.
-// 	y = { f32 };
-// 
-// 	x : Vec2(f32) = { x: f32, y: f32 };
-// );
+Nice :: hello;    
+// Hello

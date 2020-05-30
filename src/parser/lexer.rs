@@ -78,11 +78,9 @@ impl Lexer<'_> {
     }
 
     pub fn at_end_of_file(
-        &self,
+        &mut self,
     ) -> bool {
-        let mut clone = self.source.clone();
-        skip_whitespace(&mut clone, &mut (0, 0));
-        clone.next().is_none()
+        self.peek_token(0).is_err()
     }
 
     pub fn peek_token<'a>(
