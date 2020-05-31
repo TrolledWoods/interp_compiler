@@ -19,7 +19,7 @@ pub enum Node {
     /// They are both the same!
     /// A type collection will obviously convert into a
     /// type id(like all types).
-    Collection(BTreeMap<TinyString, Expression>),
+    Collection(BTreeMap<TinyString, (Pos, Expression)>),
 
     /// Just an identifier.
     Identifier(Id, TinyString),

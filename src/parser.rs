@@ -269,15 +269,18 @@ fn parse_value(
                     parse_expression(parser, namespace_id),
                 |ident, elem| {
                     if let Some(
-                        old
-                    ) = list.insert(ident.name, elem) {
-                        Err(Error::DuplicateCollectionMembers {
+                        (old_pos, _old_elem),
+                    ) = list.insert(
+                        ident.name, 
+                        (ident.pos, elem),
+                    ) {
+                        Err(Error::DuplicateCollectionMembers{
                             pos: ident.pos,
-                            old_pos: old.pos,
+                            old_pos,
                             name: ident.name,
                         })
                     } else { Ok(()) }
-                }
+                },
             )?;
 
             Expression {
@@ -413,7 +416,7 @@ pub enum Error {
     },
     DuplicateCollectionMembers {
         pos: Pos,
-        old_pos: Option<Pos>,
+        old_pos: Pos,
         name: TinyString,
     },
 }
