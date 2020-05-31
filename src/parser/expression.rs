@@ -67,7 +67,7 @@ pub enum Node {
     /// the block.
     Block {
         contents: Vec<Expression>,
-        returns_something: bool,
+        is_expression: bool,
     },
 }
 

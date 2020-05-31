@@ -45,6 +45,15 @@ struct Parser<'a> {
 }
 
 impl Parser<'_> {
+    fn create_sub_namespace(
+        &mut self,
+        source: Id,
+    ) -> Id {
+        // TODO: Actually add some metadata as to
+        // how namespaces relate to one another
+        self.namespace_id_builder.create_id()
+    }
+
     /// Makes sure that the next value is the
     /// correct kind. If not, it will create an
     /// error.
@@ -298,7 +307,7 @@ fn parse_value(
         }
         TokenKind::Bracket('(') => {
             // Block!
-            todo!("Parsing blocks");
+            parse_block(parser, namespace_id)?
         }
         TokenKind::Bracket('{') => {
             // Collection!
@@ -397,6 +406,62 @@ fn parse_value(
     }
 
     Ok(value.unwrap())
+}
+
+fn parse_block(
+    parser: &mut Parser,
+    namespace_id: Id,
+) -> ParsingResult<Expression> {
+    let namespace_id = 
+        parser.create_sub_namespace(namespace_id);
+
+    let start = parser.kind(
+        TokenKind::Bracket('('),
+        "( ... code here ... )",
+    )?;
+
+    let mut commands = Vec::new();
+    let (is_expression, end) = loop {
+        if let Some(end) = parser.maybe_kind(
+            TokenKind::ClosingBracket('(')
+        )? {
+            break (false, end);
+        }
+
+        let expr = parse_expression(parser, namespace_id)?;
+        commands.push(expr);
+
+        match parser.next_token()? {
+            Token { 
+                kind: TokenKind::Special(";"),
+                .. 
+            } => (),
+            Token {
+                kind: TokenKind::ClosingBracket(
+                          bracket_kind
+                      ),
+                      pos,
+            } => break (true, pos),
+            Token {
+                pos,
+                kind,
+            } => return Err(Error::InvalidToken {
+                pos,
+                got: kind,
+                pattern: 
+                    "( code; code; ... code here ... )",
+                    expected: vec![";", ")"],
+            }),
+        }
+    };
+
+    Ok(Expression {
+        pos: Some(start.join(end)),
+        kind: Node::Block {
+            contents: commands,
+            is_expression,
+        }
+    })
 }
 
 fn parse_list<'a, Elem>(
