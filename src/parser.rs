@@ -339,9 +339,36 @@ fn parse_value(
         TokenKind::Identifier(name) => {
             parser.next_token()?;
 
-            Expression {
-                pos: Some(pos),
-                kind: Node::Identifier(namespace_id, name),
+            let mut args = vec![];
+            if parser.peek_token(0)?.kind == 
+                    TokenKind::Bracket('[') {
+                parse_list(
+                    parser,
+                    '[',
+                    |parser| parse_expression(
+                        parser, namespace_id,
+                    ),
+                    |elem| {
+                        args.push(elem);
+                        Ok(())
+                    },
+                )?;
+            }
+
+            if args.len() == 0 {
+                Expression {
+                    pos: Some(pos),
+                    kind: Node::Identifier(namespace_id, name),
+                }
+            } else {
+                Expression {
+                    pos: Some(pos),
+                    kind: Node::ConstCall(
+                        namespace_id,
+                        name,
+                        args,
+                    ),
+                }
             }
         }
         _ => todo!("Error message for invalid value token"),
