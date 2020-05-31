@@ -10,6 +10,7 @@ mod parser;
 mod pos;
 mod tiny_string;
 mod tree_structure;
+mod types;
 
 /// Common imports that most things need.
 /// This is to make the imports at the top
@@ -18,6 +19,7 @@ mod prelude {
     pub use crate::id::{Id, IdBuilder};
     pub use crate::pos::Pos;
     pub use crate::tiny_string::TinyString;
+    pub use crate::types::{PrimitiveKind, Type, TypeIds};
 }
 
 fn main() {
@@ -27,7 +29,7 @@ fn main() {
         "testing".into(),
         &ids,
         ids.create_id(),
-        |unit| println!("{:#?}", unit),
+        |unit| println!("{:?}", unit),
     )
     .unwrap();
 }

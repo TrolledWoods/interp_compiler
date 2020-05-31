@@ -3,8 +3,8 @@
 //!
 //! ``parse_file`` parses a file, and is the most
 //! common public interface into the module.
-mod lexer;
 mod expression;
+mod lexer;
 
 use crate::prelude::*;
 use expression::prelude::*;
@@ -13,6 +13,7 @@ use lexer::{
     TokenKind,
 };
 use std::io::Error as IoError;
+use std::collections::BTreeMap;
 
 #[derive(Debug)]
 pub enum CodeUnit {
@@ -61,26 +62,20 @@ impl Parser<'_> {
                 pos: token.pos,
                 got: token.kind,
                 pattern,
+                expected: vec![],
             })
         }
     }
 
-    /// Returns ``Ok(Some(pos))`` and moves to
-    /// the next token if the next token has
-    /// the given kind. Otherwise, it doesn't do
-    /// anything and returns ``Ok(None)``.
-    ///
-    /// The only errors are when the Lexer fails
-    /// in some way. The only fail that isn't counted
-    /// is the ``LexingError::EndOfFile``, that returns
-    /// ``Ok(None)`` too.
     fn try_kind(
         &mut self,
         kind: TokenKind,
     ) -> LexingResult<bool> {
         let token = match self.lexer.peek_token(0) {
             Ok(token) => token,
-            Err(LexingError::EndOfFile) => return Ok(false),
+            Err(LexingError::EndOfFile) => {
+                return Ok(false)
+            }
             Err(err) => return Err(err),
         };
 
@@ -89,6 +84,28 @@ impl Parser<'_> {
             Ok(true)
         } else {
             Ok(false)
+        }
+    }
+
+    fn maybe_kind(
+        &mut self,
+        kind: TokenKind,
+    ) -> LexingResult<Option<Pos>> {
+        let token = match self.lexer.peek_token(0) {
+            Ok(token) => token,
+            Err(LexingError::EndOfFile) => {
+                return Ok(None)
+            }
+            Err(err) => return Err(err),
+        };
+
+        if token.kind == kind {
+            let Token {
+                pos, ..
+            } = self.lexer.next_token().unwrap();
+            Ok(Some(pos))
+        } else {
+            Ok(None)
         }
     }
 
@@ -149,7 +166,7 @@ fn parse_namespace(
 
         match parse_constant(parser, namespace_id) {
             Ok(unit) => {
-                println!("{:#?}", unit);
+                println!("{:?}", unit);
             }
             Err(err) => return Err(err),
         }
@@ -176,27 +193,22 @@ fn parse_constant(
     // Parse constant arguments
     if parser.try_kind(TokenKind::Bracket('['))? {
         // TODO: List parsing function.
-        parser.kind(
-            TokenKind::ClosingBracket(']'), 
-            PATTERN,
-        );
+        parser
+            .kind(TokenKind::ClosingBracket(']'), PATTERN);
     }
 
     // Parse the ``: <optional type> :`` part.
-    parser.kind(
-        TokenKind::Special(":"),
-        PATTERN,
-    )?;
+    parser.kind(TokenKind::Special(":"), PATTERN)?;
 
     // If we don't have another ':' immediately after,
     // then we know we have a type, and then another ':'.
-    let type_expr = if !parser.try_kind(TokenKind::Special(":"))? {
-        let expression = parse_expression(parser, namespace_id)?;
+    let type_expr = if !parser
+        .try_kind(TokenKind::Special(":"))?
+    {
+        let expression =
+            parse_expression(parser, namespace_id)?;
 
-        parser.kind(
-            TokenKind::Special(":"),
-            PATTERN,
-        )?;
+        parser.kind(TokenKind::Special(":"), PATTERN)?;
 
         Some(expression)
     } else {
@@ -206,10 +218,7 @@ fn parse_constant(
     // Parse the actual value.
     let value = parse_expression(parser, namespace_id)?;
 
-    parser.kind(
-        TokenKind::Special(";"),
-        PATTERN,
-    )?;
+    parser.kind(TokenKind::Special(";"), PATTERN)?;
 
     Ok(CodeUnit::Constant {
         pos: name.pos,
@@ -250,20 +259,113 @@ fn parse_value(
             // Block!
             todo!("Parsing blocks");
         }
+        TokenKind::Bracket('{') => {
+            // Collection!
+            let mut list = BTreeMap::new();
+            let pos = parse_named_list(
+                parser,
+                '{',
+                |parser| 
+                    parse_expression(parser, namespace_id),
+                |ident, elem| {
+                    if let Some(
+                        old
+                    ) = list.insert(ident.name, elem) {
+                        Err(Error::DuplicateCollectionMembers {
+                            pos: ident.pos,
+                            old_pos: old.pos,
+                            name: ident.name,
+                        })
+                    } else { Ok(()) }
+                }
+            )?;
+
+            Expression {
+                pos: Some(pos),
+                kind: Node::Collection(list),
+            }
+        }
+        TokenKind::Primitive(kind) => {
+            parser.next_token()?;
+            Expression {
+                pos: Some(pos),
+                kind: Node::Primitive(kind),
+            }
+        }
         TokenKind::Identifier(name) => {
             parser.next_token()?;
 
             Expression {
-                pos: Some(pos), 
+                pos: Some(pos),
                 kind: Node::Identifier(namespace_id, name),
             }
         }
         _ => todo!("Error message for invalid value token"),
     };
 
-    // TODO: Check for brackets here indicating function calls.
+    // TODO: Check for brackets here indicating function
+    // calls.
 
     Ok(value)
+}
+
+fn parse_named_list<'a, Elem>(
+    parser: &mut Parser<'a>,
+    bracket_kind: char,
+    mut parse_element: impl FnMut(
+        &mut Parser<'a>
+    ) -> ParsingResult<Elem>,
+    mut on_get_element: 
+        impl FnMut(Identifier, Elem) -> ParsingResult<()>,
+) -> ParsingResult<Pos> {
+    let start = parser.kind(
+        TokenKind::Bracket(bracket_kind),
+        "Wanted bracket",
+    )?;
+
+    let mut auto_name_counter = 0;
+    let end = loop {
+        if let Some(end) = parser.maybe_kind(
+            TokenKind::ClosingBracket(bracket_kind),
+        )? {
+            break end;
+        }
+
+        let name = parse_identifier(
+            parser,
+            "{ [name]: [item], [name]: [item] }",
+        )?;
+
+        parser.kind(
+            TokenKind::Special(":"),
+            "{ [name]: [item] }",
+        )?;
+
+        let element = parse_element(parser)?;
+        on_get_element(name, element)?;
+
+        match parser.next_token()? {
+            Token { 
+                kind: TokenKind::Special(","),
+                .. 
+            } => (),
+            Token {
+                kind: TokenKind::ClosingBracket(bracket_kind),
+                pos,
+            } => break pos,
+            Token {
+                pos,
+                kind,
+            } => return Err(Error::InvalidToken {
+                pos,
+                got: kind,
+                pattern: "{ [name]: [item], [name]: [item] }",
+                expected: vec![",", "}"],
+            }),
+        }
+    };
+
+    Ok(start.join(end))
 }
 
 pub struct Identifier {
@@ -279,17 +381,12 @@ fn parse_identifier(
         Token {
             kind: TokenKind::Identifier(name),
             pos,
-        } => Ok(Identifier {
-            pos,
-            name,
-        }),
-        Token {
-            kind,
-            pos,
-        } => Err(Error::InvalidToken {
+        } => Ok(Identifier { pos, name }),
+        Token { kind, pos } => Err(Error::InvalidToken {
             pos,
             got: kind,
             pattern,
+            expected: vec![],
         }),
     }
 }
@@ -312,6 +409,12 @@ pub enum Error {
         got: TokenKind,
         /// The whole thing that was trying to be parsed.
         pattern: &'static str,
+        expected: Vec<&'static str>,
+    },
+    DuplicateCollectionMembers {
+        pos: Pos,
+        old_pos: Option<Pos>,
+        name: TinyString,
     },
 }
 

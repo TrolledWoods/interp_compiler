@@ -1,2 +1,4 @@
 max_width = 60
+wrap_comments = true
+comment_width = 60
 newline_style = "Windows"

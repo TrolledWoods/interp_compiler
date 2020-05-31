@@ -271,7 +271,8 @@ fn slice_into_tree<'a, T>(
     // SAFETY: This should be safe, because
     // the memory representation of a Tree and a slice
     // are exactly the same. Not sure if that is perfectly
-    // defined though, so I'm a little bit scared to do this.
+    // defined though, so I'm a little bit scared to do
+    // this.
     unsafe { transmute(slice) }
 }
 

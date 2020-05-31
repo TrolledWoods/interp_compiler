@@ -38,7 +38,7 @@ pub enum TokenKind {
     AssignOperator(&'static str),
     Special(&'static str),
     Keyword(&'static str),
-    Primitive(&'static str),
+    Primitive(PrimitiveKind),
     IntLiteral(u128),
     FloatLiteral(f64),
     /// Maybe use a ``Arc<String>`` here? Or have a
@@ -77,9 +77,7 @@ impl Lexer<'_> {
         }
     }
 
-    pub fn at_end_of_file(
-        &mut self,
-    ) -> bool {
+    pub fn at_end_of_file(&mut self) -> bool {
         self.peek_token(0).is_err()
     }
 
@@ -410,18 +408,12 @@ const RESERVED_WORDS: &[(&str, TokenKind)] = {
         ("for", Keyword("for")),
         ("if", Keyword("if")),
         ("else", Keyword("else")),
-
-        // Primitive types(yes, these are also reserved words)
-        ("f32", Primitive("f32")),
-        ("f64", Primitive("f64")),
-        ("i8",  Primitive("i8")),
-        ("i16", Primitive("i16")),
-        ("i32", Primitive("i32")),
-        ("i64", Primitive("i64")),
-        ("u8",  Primitive("u8")),
-        ("u16", Primitive("u16")),
-        ("u32", Primitive("u32")),
-        ("u64", Primitive("u64")),
+        // Primitive types(yes, these are also reserved
+        // words)
+        ("char_8", Primitive(PrimitiveKind::Char8)),
+        ("char_16", Primitive(PrimitiveKind::Char16)),
+        ("char_32", Primitive(PrimitiveKind::Char32)),
+        ("char_64", Primitive(PrimitiveKind::Char64)),
     ]
 };
 
@@ -429,18 +421,20 @@ const RESERVED_WORDS: &[(&str, TokenKind)] = {
 // structure that allows for more efficient
 // tokenization of things(but remember to
 // profile it too, please!)
-/// Non alphabetic reserved words that directly map to tokens.
+/// Non alphabetic reserved words that directly map to
+/// tokens.
 ///
 /// The difference between this and ``RESERVED_WORDS``,
-/// is that words cannot be joined together with other words,
-/// while these special tokens can be joined together with
-/// other special tokens.
+/// is that words cannot be joined together with other
+/// words, while these special tokens can be joined together
+/// with other special tokens.
 ///
 /// Example: ``for_blah : f32 = 0.4;`` is a valid statement,
-/// because ``for_blah`` is a single identifier, not ``for`` then
-/// ``_blah``. ``x +- 3`` is also valid, but here because
-/// ``+-`` is turned into ``+`` and ``-``. We need both of these
-/// different behaviours, so we cannot put them into the same list.
+/// because ``for_blah`` is a single identifier, not ``for``
+/// then ``_blah``. ``x +- 3`` is also valid, but here
+/// because ``+-`` is turned into ``+`` and ``-``. We need
+/// both of these different behaviours, so we cannot put
+/// them into the same list.
 const RESERVED_CHARACTERS: &[(&str, TokenKind)] = {
     use TokenKind::*;
     &[

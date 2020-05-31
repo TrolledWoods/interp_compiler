@@ -70,16 +70,14 @@ impl Pos {
     }
 
     pub fn join(&self, other: Pos) -> Pos {
-        debug_assert_eq!(
+        assert_eq!(
             self.file, other.file,
             "Cannot join two Pos's with different files"
         );
-        debug_assert!(
-            self.start_line() <= other.start_line(),
-            "Cannot join in the wrong order"
-        );
-        debug_assert!(
-            self.start_char() <= other.start_char(),
+        assert!(
+            self.start_line() < other.end_line() ||
+            (self.start_line() == other.end_line() &&
+             self.start_char() <= other.end_char()),
             "Cannot join in the wrong order"
         );
 

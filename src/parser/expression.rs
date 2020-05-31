@@ -4,11 +4,7 @@ use std::collections::BTreeMap;
 /// A collection of useful things to have
 /// from this module.
 pub mod prelude {
-    pub use super::{
-        Expression,
-        Node,
-        CollectionElement,
-    };
+    pub use super::{CollectionElement, Expression, Node};
 }
 
 #[derive(Debug, Clone)]
@@ -21,19 +17,24 @@ pub struct Expression {
 pub enum Node {
     /// A collection can be either a type or a value!
     /// They are both the same!
-    /// A type collection will obviously convert into a 
+    /// A type collection will obviously convert into a
     /// type id(like all types).
-    Collection(BTreeMap<TinyString, CollectionElement>),
+    Collection(BTreeMap<TinyString, Expression>),
 
     /// Just an identifier.
     Identifier(Id, TinyString),
+    /// A primitive type
+    Primitive(PrimitiveKind),
 
     UnaryOperator(&'static str, Box<Expression>),
-    BinaryOperator(&'static str, Box<(Expression, Expression)>),
+    BinaryOperator(
+        &'static str,
+        Box<(Expression, Expression)>,
+    ),
 
-    /// A constant function call, with the given expressions
-    /// as input. Maybe make named parameters a thing
-    /// later on?
+    /// A constant function call, with the given
+    /// expressions as input. Maybe make named
+    /// parameters a thing later on?
     ConstCall(Id, TinyString, Vec<Expression>),
 
     /// A function call. The first element of the vector
@@ -42,9 +43,10 @@ pub enum Node {
     /// are the function arguments in order.
     FunctionCall(Vec<Node>),
 
-    /// A declaration. This will return some weird type, that
-    /// can never be used. So this behaves as a statement, because
-    /// it cannot be used as an expression. Clever ;D
+    /// A declaration. This will return some weird type,
+    /// that can never be used. So this behaves as a
+    /// statement, because it cannot be used as an
+    /// expression. Clever ;D
     Declaration {
         name: TinyString,
         type_expr: Box<Expression>,
@@ -52,12 +54,14 @@ pub enum Node {
 
     /// The first expression is the l-value, the right
     /// expression is the r-value. Yes, there is no
-    /// differenciation. That happens when compiling/interpreting.
+    /// differenciation. That happens when
+    /// compiling/interpreting.
     Assignment(Box<(Expression, Expression)>),
 
     /// A set of expressions.
-    /// If the ``returns_something`` flag is set, the block will
-    /// return the value of the last expression in the block.
+    /// If the ``returns_something`` flag is set, the block
+    /// will return the value of the last expression in
+    /// the block.
     Block {
         contents: Vec<Expression>,
         returns_something: bool,

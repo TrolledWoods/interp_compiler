@@ -1,2 +1,9 @@
-Nice :: hello;    
-// Hello
+hello :: { hi: f32, hi2: f32, };
+
+wow :: {
+	wow: {
+		x: f32,
+		y: f32,
+	},
+	wowee: { x: f32, y: f32, },
+};
