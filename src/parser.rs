@@ -272,6 +272,30 @@ fn parse_value(
     let (pos, kind) = parser.peek_token(0)?.into_parts();
 
     let value = match kind {
+        TokenKind::IntLiteral(num) => {
+            parser.next_token()?;
+            Expression {
+                pos: Some(pos),
+                kind: Node::IntLiteral(num),
+            }
+        }
+        TokenKind::FloatLiteral(num) => {
+            parser.next_token()?;
+            Expression {
+                pos: Some(pos),
+                kind: Node::FloatLiteral(num),
+            }
+        }
+        TokenKind::Operator(op) => {
+            let Token { pos, .. } = parser.next_token()?;
+            let inside = parse_value(parser, namespace_id)?;
+
+            Expression {
+                pos: Some(pos),
+                kind: 
+                    Node::UnaryOperator(op, Box::new(inside)),
+            }
+        }
         TokenKind::Bracket('(') => {
             // Block!
             todo!("Parsing blocks");

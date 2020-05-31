@@ -58,6 +58,9 @@ pub enum Node {
     /// compiling/interpreting.
     Assignment(Box<(Expression, Expression)>),
 
+    IntLiteral(u128),
+    FloatLiteral(f64),
+
     /// A set of expressions.
     /// If the ``returns_something`` flag is set, the block
     /// will return the value of the last expression in

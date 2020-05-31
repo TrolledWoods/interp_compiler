@@ -1,5 +1,2 @@
-Vec[T: type] :: {
-	capacity: u64,
-	length: u64,
-	buffer: *T,
-};
+Hello :: 23;
+Wohooo :: 23.12412;
