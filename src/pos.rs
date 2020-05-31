@@ -1,7 +1,8 @@
 use crate::prelude::*;
 use std::ops::Range;
+use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Pos {
     pub file: TinyString,
 
@@ -86,6 +87,19 @@ impl Pos {
             start: self.start,
             end: other.end,
         }
+    }
+}
+
+impl fmt::Debug for Pos {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "({}:{}-{}:{})", 
+            self.start.0 + 1, 
+            self.start.1 + 1, 
+            self.end.0 + 1, 
+            self.end.1 + 1
+        )
     }
 }
 
