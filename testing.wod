@@ -1,2 +1,1 @@
-Hello :: 23;
-Wohooo :: 23.12412;
+FunctionCallTest :: 23 (50) ();

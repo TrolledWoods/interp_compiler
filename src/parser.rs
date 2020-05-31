@@ -271,7 +271,7 @@ fn parse_value(
 ) -> ParsingResult<Expression> {
     let (pos, kind) = parser.peek_token(0)?.into_parts();
 
-    let value = match kind {
+    let mut value = match kind {
         TokenKind::IntLiteral(num) => {
             parser.next_token()?;
             Expression {
@@ -347,10 +347,77 @@ fn parse_value(
         _ => todo!("Error message for invalid value token"),
     };
 
-    // TODO: Check for brackets here indicating function
-    // calls.
+    // value is an option because we need to move it to
+    // a vector temporarily
+    let mut value = Some(value);
+    while parser.peek_token(0)?.kind == 
+            TokenKind::Bracket('(') {
+        let mut args = vec![value.take().unwrap()];
+        let pos = parse_list(
+            parser,
+            '(',
+            |parser| parse_expression(parser, namespace_id),
+            |elem| {
+                args.push(elem);
+                Ok(())
+            },
+        )?;
 
-    Ok(value)
+        value = Some(Expression {
+            pos: Some(pos),
+            kind: Node::FunctionCall(args),
+        });
+    }
+
+    Ok(value.unwrap())
+}
+
+fn parse_list<'a, Elem>(
+    parser: &mut Parser<'a>,
+    bracket_kind: char,
+    mut parse_element: impl FnMut(
+        &mut Parser<'a>
+    ) -> ParsingResult<Elem>,
+    mut on_get_element: 
+        impl FnMut(Elem) -> ParsingResult<()>,
+) -> ParsingResult<Pos> {
+    let start = parser.kind(
+        TokenKind::Bracket(bracket_kind),
+        "Wanted bracket",
+    )?;
+
+    let end = loop {
+        if let Some(end) = parser.maybe_kind(
+            TokenKind::ClosingBracket(bracket_kind),
+        )? {
+            break end;
+        }
+
+        let element = parse_element(parser)?;
+        on_get_element(element);
+
+        match parser.next_token()? {
+            Token { 
+                kind: TokenKind::Special(","),
+                .. 
+            } => (),
+            Token {
+                kind: TokenKind::ClosingBracket(bracket_kind),
+                pos,
+            } => break pos,
+            Token {
+                pos,
+                kind,
+            } => return Err(Error::InvalidToken {
+                pos,
+                got: kind,
+                pattern: "{ [name]: [item], [name]: [item] }",
+                expected: vec![",", "}"],
+            }),
+        }
+    };
+
+    Ok(start.join(end))
 }
 
 fn parse_named_list<'a, Elem>(

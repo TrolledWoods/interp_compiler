@@ -41,7 +41,7 @@ pub enum Node {
     /// is the function you're calling, which can be an
     /// arbitrary complex expression, of course. The rest
     /// are the function arguments in order.
-    FunctionCall(Vec<Node>),
+    FunctionCall(Vec<Expression>),
 
     /// A declaration. This will return some weird type,
     /// that can never be used. So this behaves as a
