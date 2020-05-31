@@ -24,7 +24,7 @@ pub enum CodeUnit {
         pos: Pos,
         namespace: Id,
         name: TinyString,
-        const_args: Vec<(TinyString, Expression)>,
+        const_args: BTreeMap<TinyString, (Pos, Expression)>,
         type_expression: Option<Expression>,
         value: Expression,
     },
@@ -190,11 +190,28 @@ fn parse_constant(
     // All of these are basically just constants
     let name = parse_identifier(parser, PATTERN)?;
 
-    // Parse constant arguments
-    if parser.try_kind(TokenKind::Bracket('['))? {
-        // TODO: List parsing function.
-        parser
-            .kind(TokenKind::ClosingBracket(']'), PATTERN);
+    let mut const_args = BTreeMap::new();
+    if parser.peek_token(0)?.kind == TokenKind::Bracket('[') {
+        parse_named_list(
+            parser,
+            '[',
+            |parser| parse_expression(parser, namespace_id),
+            |name, elem| {
+                match const_args.insert(
+                    name.name, 
+                    (name.pos, elem),
+                ) {
+                    Some((old_pos, _)) => Err(
+                        Error::DuplicateConstArg {
+                            pos: name.pos,
+                            old_pos,
+                            name: name.name,
+                        }
+                    ),
+                    _ => Ok(()),
+                }
+            }
+        )?;
     }
 
     // Parse the ``: <optional type> :`` part.
@@ -224,7 +241,7 @@ fn parse_constant(
         pos: name.pos,
         namespace: namespace_id,
         name: name.name,
-        const_args: vec![],
+        const_args,
         type_expression: type_expr,
         value,
     })
@@ -413,6 +430,11 @@ pub enum Error {
         /// The whole thing that was trying to be parsed.
         pattern: &'static str,
         expected: Vec<&'static str>,
+    },
+    DuplicateConstArg {
+        pos: Pos,
+        old_pos: Pos,
+        name: TinyString,
     },
     DuplicateCollectionMembers {
         pos: Pos,

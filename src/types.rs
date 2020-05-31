@@ -25,6 +25,7 @@ pub enum PrimitiveKind {
     UInt64,
     Float32,
     Float64,
+    Type,
 }
 
 pub struct Type {
