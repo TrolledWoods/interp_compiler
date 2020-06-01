@@ -10,6 +10,8 @@ const MoreTests = (
 	let x: i32 = 26;
 	let y: i32 = 24;
 
+	x += hello[f32, f64] (32, 4124);
+
 	// y: i32 = 
 	// 	map x: 
 	// 	25 => 2, 

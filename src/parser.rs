@@ -275,7 +275,15 @@ fn parse_expression_req(
     namespace_id: Id,
     priority: u8,
 ) -> ParsingResult<Expression> {
+	use TokenKind::*;
+
     let value = parse_value(parser, namespace_id)?;
+
+	// match parser.peek_token(0)? {
+	// 	Token { kind: Operator(op), pos } => {
+	// 	}
+	// }
+
     Ok(value)
 }
 
@@ -492,7 +500,26 @@ fn parse_block(
 			_ => {
 				let expr = 
 					parse_expression(parser, namespace_id)?;
-				commands.push(expr);
+
+				match parser.peek_token(0)?.kind {
+					AssignOperator(op) => {
+						parser.next_token()?;
+						let right_expr =
+							parse_expression(
+								parser, 
+								namespace_id,
+							)?;
+
+						commands.push(Expression {
+							pos: expr.pos,
+							kind: Node::Assignment(
+								op,
+								box (expr, right_expr),
+							),
+						});
+					}
+					_ => commands.push(expr),
+				}
 			},
 		}
 

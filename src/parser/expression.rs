@@ -57,7 +57,7 @@ pub enum Node {
     /// expression is the r-value. Yes, there is no
     /// differenciation. That happens when
     /// compiling/interpreting.
-    Assignment(Box<(Expression, Expression)>),
+    Assignment(&'static str, Box<(Expression, Expression)>),
 
     IntLiteral(u128),
     FloatLiteral(f64),
