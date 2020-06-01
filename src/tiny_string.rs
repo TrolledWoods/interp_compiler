@@ -16,7 +16,9 @@ fn read_pile<'a>() -> RwLockReadGuard<'a, Vec<String>> {
 /// and good for equality checking on those strings,
 /// which is also perfect for identifiers, because we have
 /// to check equality on a lot of them
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord,
+)]
 pub struct TinyString(usize);
 
 impl TinyString {

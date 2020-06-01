@@ -1,6 +1,6 @@
 use crate::prelude::*;
-use std::ops::Range;
 use std::fmt;
+use std::ops::Range;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct Pos {
@@ -76,9 +76,10 @@ impl Pos {
             "Cannot join two Pos's with different files"
         );
         assert!(
-            self.start_line() < other.end_line() ||
-            (self.start_line() == other.end_line() &&
-             self.start_char() <= other.end_char()),
+            self.start_line() < other.end_line()
+                || (self.start_line() == other.end_line()
+                    && self.start_char()
+                        <= other.end_char()),
             "Cannot join in the wrong order"
         );
 
@@ -94,10 +95,10 @@ impl fmt::Debug for Pos {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "({}:{}-{}:{})", 
-            self.start.0 + 1, 
-            self.start.1 + 1, 
-            self.end.0 + 1, 
+            "({}:{}-{}:{})",
+            self.start.0 + 1,
+            self.start.1 + 1,
+            self.end.0 + 1,
             self.end.1 + 1
         )
     }

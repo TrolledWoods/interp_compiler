@@ -12,8 +12,8 @@ use lexer::{
     Error as LexingError, Lexer, LexingResult, Token,
     TokenKind,
 };
-use std::io::Error as IoError;
 use std::collections::BTreeMap;
+use std::io::Error as IoError;
 
 #[derive(Debug)]
 pub enum CodeUnit {
@@ -45,10 +45,7 @@ struct Parser<'a> {
 }
 
 impl Parser<'_> {
-    fn create_sub_namespace(
-        &mut self,
-        source: Id,
-    ) -> Id {
+    fn create_sub_namespace(&mut self, source: Id) -> Id {
         // TODO: Actually add some metadata as to
         // how namespaces relate to one another
         self.namespace_id_builder.create_id()
@@ -102,16 +99,13 @@ impl Parser<'_> {
     ) -> LexingResult<Option<Pos>> {
         let token = match self.lexer.peek_token(0) {
             Ok(token) => token,
-            Err(LexingError::EndOfFile) => {
-                return Ok(None)
-            }
+            Err(LexingError::EndOfFile) => return Ok(None),
             Err(err) => return Err(err),
         };
 
         if token.kind == kind {
-            let Token {
-                pos, ..
-            } = self.lexer.next_token().unwrap();
+            let Token { pos, .. } =
+                self.lexer.next_token().unwrap();
             Ok(Some(pos))
         } else {
             Ok(None)
@@ -193,33 +187,31 @@ fn parse_constant(
     parser: &mut Parser,
     namespace_id: Id,
 ) -> ParsingResult<CodeUnit> {
-    const PATTERN: &str =
-         "<name>[a: <const_arg>] : <optional type> : <value>;";
+    const PATTERN: &str = "<name>[a: <const_arg>] : \
+                           <optional type> : <value>;";
 
     // All of these are basically just constants
     let name = parse_identifier(parser, PATTERN)?;
 
     let mut const_args = BTreeMap::new();
-    if parser.peek_token(0)?.kind == TokenKind::Bracket('[') {
+    if parser.peek_token(0)?.kind == TokenKind::Bracket('[')
+    {
         parse_named_list(
             parser,
             '[',
             |parser| parse_expression(parser, namespace_id),
-            |name, elem| {
-                match const_args.insert(
-                    name.name, 
-                    (name.pos, elem),
-                ) {
-                    Some((old_pos, _)) => Err(
-                        Error::DuplicateConstArg {
-                            pos: name.pos,
-                            old_pos,
-                            name: name.name,
-                        }
-                    ),
-                    _ => Ok(()),
+            |name, elem| match const_args
+                .insert(name.name, (name.pos, elem))
+            {
+                Some((old_pos, _)) => {
+                    Err(Error::DuplicateListItems {
+                        pos: name.pos,
+                        old_pos,
+                        name: name.name,
+                    })
                 }
-            }
+                _ => Ok(()),
+            },
         )?;
     }
 
@@ -301,8 +293,10 @@ fn parse_value(
 
             Expression {
                 pos: Some(pos),
-                kind: 
-                    Node::UnaryOperator(op, Box::new(inside)),
+                kind: Node::UnaryOperator(
+                    op,
+                    Box::new(inside),
+                ),
             }
         }
         TokenKind::Bracket('(') => {
@@ -315,21 +309,24 @@ fn parse_value(
             let pos = parse_named_list(
                 parser,
                 '{',
-                |parser| 
-                    parse_expression(parser, namespace_id),
+                |parser| {
+                    parse_expression(parser, namespace_id)
+                },
                 |ident, elem| {
-                    if let Some(
-                        (old_pos, _old_elem),
-                    ) = list.insert(
-                        ident.name, 
-                        (ident.pos, elem),
-                    ) {
-                        Err(Error::DuplicateCollectionMembers{
+                    if let Some((old_pos, _old_elem)) = list
+                        .insert(
+                            ident.name,
+                            (ident.pos, elem),
+                        )
+                    {
+                        Err(Error::DuplicateListItems {
                             pos: ident.pos,
                             old_pos,
                             name: ident.name,
                         })
-                    } else { Ok(()) }
+                    } else {
+                        Ok(())
+                    }
                 },
             )?;
 
@@ -349,14 +346,18 @@ fn parse_value(
             parser.next_token()?;
 
             let mut args = vec![];
-            if parser.peek_token(0)?.kind == 
-                    TokenKind::Bracket('[') {
+            if parser.peek_token(0)?.kind
+                == TokenKind::Bracket('[')
+            {
                 parse_list(
                     parser,
                     '[',
-                    |parser| parse_expression(
-                        parser, namespace_id,
-                    ),
+                    |parser| {
+                        parse_expression(
+                            parser,
+                            namespace_id,
+                        )
+                    },
                     |elem| {
                         args.push(elem);
                         Ok(())
@@ -367,7 +368,10 @@ fn parse_value(
             if args.len() == 0 {
                 Expression {
                     pos: Some(pos),
-                    kind: Node::Identifier(namespace_id, name),
+                    kind: Node::Identifier(
+                        namespace_id,
+                        name,
+                    ),
                 }
             } else {
                 Expression {
@@ -386,8 +390,9 @@ fn parse_value(
     // value is an option because we need to move it to
     // a vector temporarily
     let mut value = Some(value);
-    while parser.peek_token(0)?.kind == 
-            TokenKind::Bracket('(') {
+    while parser.peek_token(0)?.kind
+        == TokenKind::Bracket('(')
+    {
         let mut args = vec![value.take().unwrap()];
         let pos = parse_list(
             parser,
@@ -412,7 +417,7 @@ fn parse_block(
     parser: &mut Parser,
     namespace_id: Id,
 ) -> ParsingResult<Expression> {
-    let namespace_id = 
+    let namespace_id =
         parser.create_sub_namespace(namespace_id);
 
     let start = parser.kind(
@@ -422,9 +427,9 @@ fn parse_block(
 
     let mut commands = Vec::new();
     let (is_expression, end) = loop {
-        if let Some(end) = parser.maybe_kind(
-            TokenKind::ClosingBracket('(')
-        )? {
+        if let Some(end) = parser
+            .maybe_kind(TokenKind::ClosingBracket('('))?
+        {
             break (false, end);
         }
 
@@ -432,26 +437,24 @@ fn parse_block(
         commands.push(expr);
 
         match parser.next_token()? {
-            Token { 
+            Token {
                 kind: TokenKind::Special(";"),
-                .. 
+                ..
             } => (),
             Token {
-                kind: TokenKind::ClosingBracket(
-                          bracket_kind
-                      ),
-                      pos,
+                kind:
+                    TokenKind::ClosingBracket(bracket_kind),
+                pos,
             } => break (true, pos),
-            Token {
-                pos,
-                kind,
-            } => return Err(Error::InvalidToken {
-                pos,
-                got: kind,
-                pattern: 
-                    "( code; code; ... code here ... )",
+            Token { pos, kind } => {
+                return Err(Error::InvalidToken {
+                    pos,
+                    got: kind,
+                    pattern: "( code; code; ... code here \
+                              ... )",
                     expected: vec![";", ")"],
-            }),
+                })
+            }
         }
     };
 
@@ -460,18 +463,171 @@ fn parse_block(
         kind: Node::Block {
             contents: commands,
             is_expression,
-        }
+        },
     })
+}
+
+/// A named or unnamed (or empty) list.
+enum NamedOrUnnamedList<T> {
+    Empty,
+    Named(BTreeMap<TinyString, (Pos, T)>),
+    Unnamed(Vec<T>),
+}
+
+impl<T> NamedOrUnnamedList<T> {
+	/// If the list is named or empty, this will return the
+	/// elements. If the list is unnamed, it will return an
+	/// error.
+	///
+	/// The ``pos`` argument is to generate a better error
+	/// message.
+	fn into_named(self, pos: Pos) 
+		-> ParsingResult<BTreeMap<TinyString, (Pos, T)>> 
+	{
+		use NamedOrUnnamedList::*;
+		use Error::*;
+		match self {
+			Empty => Ok(BTreeMap::new()),
+			Named(map) => Ok(map),
+			Unnamed(_) => Err(ExpectedNamedList { pos })
+		}
+	}
+
+	/// If the list is unnamed or empty, this will return the
+	/// elements. If the list is named, it will return an
+	/// error.
+	///
+	/// The ``pos`` argument is to generate a better error
+	/// message.
+	fn into_unnamed(self, pos: Pos) 
+		-> ParsingResult<Vec<T>> 
+	{
+		use NamedOrUnnamedList::*;
+		use Error::*;
+		match self {
+			Empty => Ok(vec![]),
+			Unnamed(elements) => Ok(elements),
+			Named(_) => Err(ExpectedUnnamedList { pos }),
+		}
+	}
+}
+
+/// Parses a named or unnamed list, i.e.
+/// this: ``[ a: 4.0 + 2.0, b: 5, ]``
+/// or this: ``[ 4.0 + 2.0, 5, ]``.
+///
+/// In the named list, it also returns the positions of the
+/// identifiers for the elements, because that may be
+/// useful.
+fn parse_named_or_unnamed_list<'a, A>(
+    parser: &mut Parser<'a>,
+    bracket_kind: char,
+    mut parse_element: impl FnMut(
+        &mut Parser<'a>,
+    ) -> ParsingResult<A>,
+) -> ParsingResult<(Pos, NamedOrUnnamedList<A>)> {
+    use TokenKind::*;
+	use NamedOrUnnamedList::*;
+	use Error::*;
+
+    let start = parser.kind(
+        Bracket(bracket_kind),
+        "meh this error handling system sucks, gotta make \
+         it better later",
+    )?;
+
+    let mut list = Empty;
+    let end = loop {
+        if let Some(end) = parser
+            .maybe_kind(ClosingBracket(bracket_kind))?
+        {
+            break end;
+        }
+
+        match (parser.peek_token(0)?, parser.peek_token(1)?)
+        {
+            // Named element
+            (
+                Token {
+                    pos,
+                    kind: Identifier(name),
+                },
+                Token {
+                    kind: Special(":"),
+					..
+                },
+            ) => {
+                parser.next_token().unwrap();
+                parser.next_token().unwrap();
+
+                let elem = parse_element(parser)?;
+
+				match &mut list {
+                    Empty => {
+                        list = Named({
+                            let mut map = BTreeMap::new();
+                            map.insert(name, (pos, elem));
+                            map
+                        })
+                    }
+                    Named(map) => {
+                        let old =
+                            map.insert(name, (pos, elem));
+
+                        if let Some((old_pos, _)) = old {
+                            return Err(DuplicateListItems {
+                                pos,
+                                old_pos,
+                                name,
+                            });
+                        }
+                    }
+					Unnamed(_) => {
+						return Err(NamedItemInUnnamedList {
+							pos,
+						});
+					}
+                }
+            }
+            // Unnamed element
+            _ => {
+				todo!("unnamed element");
+			}
+        }
+
+		match parser.next_token()? {
+			Token {
+				pos,
+				kind: ClosingBracket(bracket_kind),
+			} => {
+				break pos;
+			}
+			Token {
+				kind: Special(","),
+				..
+			} => (),
+			Token {
+				pos,
+				kind,
+			} => return Err(InvalidToken {
+				pos,
+				got: kind,
+				pattern: "named/unnamed list stuff,",
+				expected: vec!["}", "]", ")", ","],
+			}),
+		}
+    };
+
+    Ok((start.join(end), list))
 }
 
 fn parse_list<'a, Elem>(
     parser: &mut Parser<'a>,
     bracket_kind: char,
     mut parse_element: impl FnMut(
-        &mut Parser<'a>
+        &mut Parser<'a>,
     ) -> ParsingResult<Elem>,
-    mut on_get_element: 
-        impl FnMut(Elem) -> ParsingResult<()>,
+    mut on_get_element: impl FnMut(Elem) -> ParsingResult<()>,
 ) -> ParsingResult<Pos> {
     let start = parser.kind(
         TokenKind::Bracket(bracket_kind),
@@ -489,23 +645,24 @@ fn parse_list<'a, Elem>(
         on_get_element(element);
 
         match parser.next_token()? {
-            Token { 
+            Token {
                 kind: TokenKind::Special(","),
-                .. 
+                ..
             } => (),
             Token {
-                kind: TokenKind::ClosingBracket(bracket_kind),
+                kind:
+                    TokenKind::ClosingBracket(bracket_kind),
                 pos,
             } => break pos,
-            Token {
-                pos,
-                kind,
-            } => return Err(Error::InvalidToken {
-                pos,
-                got: kind,
-                pattern: "{ [name]: [item], [name]: [item] }",
-                expected: vec![",", "}"],
-            }),
+            Token { pos, kind } => {
+                return Err(Error::InvalidToken {
+                    pos,
+                    got: kind,
+                    pattern: "{ [name]: [item], [name]: \
+                              [item] }",
+                    expected: vec![",", "}"],
+                })
+            }
         }
     };
 
@@ -516,10 +673,12 @@ fn parse_named_list<'a, Elem>(
     parser: &mut Parser<'a>,
     bracket_kind: char,
     mut parse_element: impl FnMut(
-        &mut Parser<'a>
+        &mut Parser<'a>,
     ) -> ParsingResult<Elem>,
-    mut on_get_element: 
-        impl FnMut(Identifier, Elem) -> ParsingResult<()>,
+    mut on_get_element: impl FnMut(
+        Identifier,
+        Elem,
+    ) -> ParsingResult<()>,
 ) -> ParsingResult<Pos> {
     let start = parser.kind(
         TokenKind::Bracket(bracket_kind),
@@ -548,23 +707,24 @@ fn parse_named_list<'a, Elem>(
         on_get_element(name, element)?;
 
         match parser.next_token()? {
-            Token { 
+            Token {
                 kind: TokenKind::Special(","),
-                .. 
+                ..
             } => (),
             Token {
-                kind: TokenKind::ClosingBracket(bracket_kind),
+                kind:
+                    TokenKind::ClosingBracket(bracket_kind),
                 pos,
             } => break pos,
-            Token {
-                pos,
-                kind,
-            } => return Err(Error::InvalidToken {
-                pos,
-                got: kind,
-                pattern: "{ [name]: [item], [name]: [item] }",
-                expected: vec![",", "}"],
-            }),
+            Token { pos, kind } => {
+                return Err(Error::InvalidToken {
+                    pos,
+                    got: kind,
+                    pattern: "{ [name]: [item], [name]: \
+                              [item] }",
+                    expected: vec![",", "}"],
+                })
+            }
         }
     };
 
@@ -614,16 +774,23 @@ pub enum Error {
         pattern: &'static str,
         expected: Vec<&'static str>,
     },
-    DuplicateConstArg {
+    DuplicateListItems {
         pos: Pos,
         old_pos: Pos,
         name: TinyString,
     },
-    DuplicateCollectionMembers {
-        pos: Pos,
-        old_pos: Pos,
-        name: TinyString,
-    },
+	ExpectedNamedList {
+		pos: Pos,
+	},
+	ExpectedUnnamedList {
+		pos: Pos,
+	},
+	NamedItemInUnnamedList {
+		pos: Pos,
+	},
+	UnnamedItemInNamedList {
+		pos: Pos,
+	},
 }
 
 impl From<LexingError> for Error {

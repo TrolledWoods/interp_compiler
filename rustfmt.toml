@@ -1,4 +1,6 @@
 max_width = 60
-wrap_comments = true
 comment_width = 60
-newline_style = "Windows"
+wrap_comments = true
+newline_style = "Windows"  
+# hard_tabs = true
+format_strings = true
