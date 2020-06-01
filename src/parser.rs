@@ -193,27 +193,19 @@ fn parse_constant(
     // All of these are basically just constants
     let name = parse_identifier(parser, PATTERN)?;
 
-    let mut const_args = BTreeMap::new();
-    if parser.peek_token(0)?.kind == TokenKind::Bracket('[')
+    let const_args = if 
+		parser.peek_token(0)?.kind == TokenKind::Bracket('[')
     {
-        parse_named_list(
+        let (pos, list) = parse_named_or_unnamed_list(
             parser,
             '[',
             |parser| parse_expression(parser, namespace_id),
-            |name, elem| match const_args
-                .insert(name.name, (name.pos, elem))
-            {
-                Some((old_pos, _)) => {
-                    Err(Error::DuplicateListItems {
-                        pos: name.pos,
-                        old_pos,
-                        name: name.name,
-                    })
-                }
-                _ => Ok(()),
-            },
         )?;
-    }
+
+		list.into_named(pos)?
+    } else { 
+		BTreeMap::new() 
+	};
 
     // Parse the ``: <optional type> :`` part.
     parser.kind(TokenKind::Special(":"), PATTERN)?;
@@ -548,14 +540,8 @@ fn parse_named_or_unnamed_list<'a, A>(
         {
             // Named element
             (
-                Token {
-                    pos,
-                    kind: Identifier(name),
-                },
-                Token {
-                    kind: Special(":"),
-					..
-                },
+                Token { pos, kind: Identifier(name), },
+                Token { kind: Special(":"), .. },
             ) => {
                 parser.next_token().unwrap();
                 parser.next_token().unwrap();
@@ -590,8 +576,15 @@ fn parse_named_or_unnamed_list<'a, A>(
                 }
             }
             // Unnamed element
-            _ => {
-				todo!("unnamed element");
+			(Token { pos, .. }, _) => {
+				let element = parse_element(parser)?;
+				match &mut list {
+					Empty => list = Unnamed(vec![element]),
+					Unnamed(list) => list.push(element),
+					Named(_) => return Err(UnnamedItemInNamedList {
+						pos,
+					}),
+				}
 			}
         }
 

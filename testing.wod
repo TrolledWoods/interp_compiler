@@ -1,1 +1,1 @@
-Hello : f32 : 23.0;
+Hello[T: type, V] :: 23.0;
