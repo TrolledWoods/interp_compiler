@@ -1,5 +1,6 @@
 use crate::prelude::*;
 use std::collections::BTreeMap;
+use std::fmt;
 
 /// A collection of useful things to have
 /// from this module.
@@ -7,13 +8,13 @@ pub mod prelude {
     pub use super::{CollectionElement, Expression, Node};
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Expression {
     pub pos: Option<Pos>,
     pub kind: Node,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum Node {
     /// A collection can be either a type or a value!
     /// They are both the same!
@@ -73,6 +74,72 @@ pub enum Node {
         contents: Vec<Expression>,
         is_expression: bool,
     },
+}
+
+impl fmt::Debug for Expression {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		self.kind.fmt(f)
+	}
+}
+
+impl fmt::Debug for Node {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		use Node::*;
+		match self {
+			Collection(map) => {
+				f.debug_map().entries(
+					map.iter().map(|(k, (v1, v2))| (k, v2))
+				).finish()
+			}
+			Unreachable => unreachable!(),
+			Identifier(id, tiny) => 
+				write!(f, "{}:{}", id, tiny),
+			Primitive(kind) => 
+				write!(f, "{:?}", kind),
+			UnaryOperator(op, expr) =>
+				write!(f, "{} {:?}", op, expr),
+			BinaryOperator(op, box (a, b)) =>
+				write!(f, "({:?} {} {:?})", a, op, b),
+			ConstCall(id, name, args) =>
+				write!(f, "{}:{}{:?}", id, name, args),
+			FunctionCall(args) => {
+				let mut args = args.iter();
+				write!(f, "{:?}(", args.next().unwrap())?;
+				for (i, arg) in args.enumerate() {
+					if i > 0 {
+						write!(f, ", ")?;
+					}
+					write!(f, "{:?}", arg)?;
+				}
+				Ok(())
+			}
+			Declaration { name, type_expr, value } => {
+				write!(f, "let {}", name)?;
+				if let Some(expr) = type_expr {
+					write!(f, ": {:?}", expr)?;
+				}
+				write!(f, " = {:?}", value)?;
+				Ok(())
+			}
+			Assignment(op, box (left, right)) => 
+				write!(f, "{:?} {} {:?}", left, op, right),
+			IntLiteral(num) => write!(f, "{}", num),
+			FloatLiteral(num) => write!(f, "{}", num),
+			Block { contents, is_expression } => {
+				let mut debug = if *is_expression {
+					f.debug_tuple("expr_block")
+				}else {
+					f.debug_tuple("block")
+				};
+
+				for content in contents {
+					debug.field(content);
+				}
+
+				debug.finish()
+			}
+		}
+	}
 }
 
 #[derive(Debug, Clone)]

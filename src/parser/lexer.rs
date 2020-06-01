@@ -424,6 +424,8 @@ const RESERVED_WORDS: &[(&str, TokenKind)] = {
         ("i16", Primitive(PrimitiveKind::Int16)),
         ("i32", Primitive(PrimitiveKind::Int32)),
         ("i64", Primitive(PrimitiveKind::Int64)),
+        ("f32", Primitive(PrimitiveKind::Float32)),
+        ("f64", Primitive(PrimitiveKind::Float64)),
         ("type", Primitive(PrimitiveKind::Type)),
     ]
 };

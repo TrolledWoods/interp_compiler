@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![allow(unused)]
 #![feature(box_syntax)]
+#![feature(box_patterns)]
 
 #[macro_use]
 extern crate lazy_static;
@@ -30,7 +31,7 @@ fn main() {
         "testing".into(),
         &ids,
         ids.create_id(),
-        |unit| println!("{:?}", unit),
+        |unit| println!("{:#?}", unit),
     )
     .unwrap();
 }

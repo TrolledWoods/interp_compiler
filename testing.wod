@@ -5,5 +5,7 @@
 // };
 
 const Yes : u32 = (
-	3 & 5
+	let x = f32 <- f64 <- 4.0;
+	let y = f32 <- f64 <- 6.0;
+	let z = x + y;
 );
