@@ -17,6 +17,13 @@ use std::collections::BTreeMap;
 use std::io::Error as IoError;
 use std::fmt;
 
+macro_rules! error {
+	($value:expr) => {{
+		println!("{}: {}:{}", file!(), line!(), column!());
+		$value
+	}}
+}
+
 #[derive(Debug)]
 pub enum CodeUnit {
     /// A constant value, that is evaluated
@@ -283,14 +290,15 @@ fn parse_expression_req(
 	loop {
 		match parser.peek_token(0)? {
 			Token { kind: Operator(op), pos } => {
-				parser.next_token()?;
 				let (order, dir) = 
 					get_operator_info(op)
 					.expect(
 						"Operators from the lexer \
 						should be valid"
 					);
-				if order < max_order { break }
+				if order <= max_order { break }
+
+				parser.next_token()?;
 				
 				let new_value = parse_expression_req(
 					parser,

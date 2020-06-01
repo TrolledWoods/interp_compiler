@@ -4,6 +4,6 @@
 // 	length: u64,
 // };
 
-const Wow = (
-	f32 <- 56.0 + f64;
+const Yes : u32 = (
+	3 & 5
 );
