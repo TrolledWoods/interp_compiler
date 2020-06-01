@@ -7,6 +7,7 @@ mod expression;
 mod lexer;
 
 use crate::prelude::*;
+use crate::operators::{ OpDirection, get_operator_info };
 use expression::prelude::*;
 use lexer::{
     Error as LexingError, Lexer, LexingResult, Token,
@@ -273,16 +274,45 @@ fn parse_expression(
 fn parse_expression_req(
     parser: &mut Parser,
     namespace_id: Id,
-    priority: u8,
+    max_order: u8,
 ) -> ParsingResult<Expression> {
 	use TokenKind::*;
 
-    let value = parse_value(parser, namespace_id)?;
+    let mut value = parse_value(parser, namespace_id)?;
 
-	// match parser.peek_token(0)? {
-	// 	Token { kind: Operator(op), pos } => {
-	// 	}
-	// }
+	loop {
+		match parser.peek_token(0)? {
+			Token { kind: Operator(op), pos } => {
+				parser.next_token()?;
+				let (order, dir) = 
+					get_operator_info(op)
+					.expect(
+						"Operators from the lexer \
+						should be valid"
+					);
+				if order < max_order { break }
+				
+				let new_value = parse_expression_req(
+					parser,
+					namespace_id,
+					order,
+				)?;
+
+				use OpDirection::*;
+				value = Expression {
+					pos: Some(pos),
+					kind: Node::BinaryOperator(
+						op,
+						box match dir {
+							LeftToRight => (value, new_value),
+							RightToLeft => (new_value, value),
+						},
+					)
+				};
+			}
+			_ => break,
+		}
+	}
 
     Ok(value)
 }

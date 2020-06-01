@@ -21,6 +21,9 @@ pub enum Node {
     /// type id(like all types).
     Collection(BTreeMap<TinyString, (Pos, Expression)>),
 
+	/// Unreachable expression
+	Unreachable,
+
     /// Just an identifier.
     Identifier(Id, TinyString),
     /// A primitive type
