@@ -1,1 +1,2 @@
-Hello[T: type, V] :: 23.0;
+Hello[T: type, V: f32] :: 23.0;
+Woah[] :: Hello[f32, f64, char_8];

@@ -536,56 +536,53 @@ fn parse_named_or_unnamed_list<'a, A>(
             break end;
         }
 
-        match (parser.peek_token(0)?, parser.peek_token(1)?)
-        {
+        match (
+			parser.peek_token(0)?, 
+			parser.peek_token(1)?,
+			&mut list,
+		) {
             // Named element
             (
                 Token { pos, kind: Identifier(name), },
                 Token { kind: Special(":"), .. },
+				Empty,
             ) => {
                 parser.next_token().unwrap();
                 parser.next_token().unwrap();
-
                 let elem = parse_element(parser)?;
-
-				match &mut list {
-                    Empty => {
-                        list = Named({
-                            let mut map = BTreeMap::new();
-                            map.insert(name, (pos, elem));
-                            map
-                        })
-                    }
-                    Named(map) => {
-                        let old =
-                            map.insert(name, (pos, elem));
-
-                        if let Some((old_pos, _)) = old {
-                            return Err(DuplicateListItems {
-                                pos,
-                                old_pos,
-                                name,
-                            });
-                        }
-                    }
-					Unnamed(_) => {
-						return Err(NamedItemInUnnamedList {
-							pos,
-						});
-					}
-                }
-            }
-            // Unnamed element
-			(Token { pos, .. }, _) => {
-				let element = parse_element(parser)?;
-				match &mut list {
-					Empty => list = Unnamed(vec![element]),
-					Unnamed(list) => list.push(element),
-					Named(_) => return Err(UnnamedItemInNamedList {
-						pos,
-					}),
-				}
+				list = Named({
+					let mut map = BTreeMap::new();
+					map.insert(name, (pos, elem));
+					map
+				});
 			}
+            (
+                Token { pos, kind: Identifier(name), },
+                Token { kind: Special(":"), .. },
+				Named(map),
+            ) => {
+                parser.next_token().unwrap();
+                parser.next_token().unwrap();
+                let elem = parse_element(parser)?;
+				map.insert(name, (pos, elem));
+			}
+            (
+                Token { pos, kind: Identifier(name), },
+                Token { kind: Special(":"), .. },
+				Unnamed(_),
+            ) => return Err(NamedItemInUnnamedList {
+				pos,
+			}),
+
+			// Unnamed element
+			(_, _, Empty) =>
+				list = Unnamed(vec![parse_element(parser)?]),
+			(_, _, Unnamed(list)) =>
+				list.push(parse_element(parser)?),
+			(Token { pos, .. }, _, Named(_)) =>
+				return Err(UnnamedItemInNamedList {
+					pos,
+				}),
         }
 
 		match parser.next_token()? {
