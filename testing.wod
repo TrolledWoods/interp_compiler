@@ -1,32 +1,9 @@
-const Vec[T: type]: type = { 
-	buffer: *T, 
-	capacity: u64, 
-	length: u64,
-};
+// const Vec[T: type]: type = { 
+// 	buffer: *T, 
+// 	capacity: u64, 
+// 	length: u64,
+// };
 
-const MoreTests = (
-	let hello = 4 + (
-		let x = 52;
-		x
-	);
-
-	// y: i32 = 
-	// 	map x: 
-	// 	25 => 2, 
-	// 	_  => x;
-	// z: i32 =
-	// 	map x:
-	// 	// Wrapping the map in parenthesees can
-	// 	// help clear any ambiguous code
-	// 	25 => (map y: 60 => 20, _=> 5),
-	// 	_  => 20;
-
-	// if 25 == x ( 25 );
-	//
-	// Ambiguous!!!!
-	// Is this a function call, or a block of code?
-	// Cannot say, therefore, we have to do special syntax
-	// in ifs.
-
-
+const Wow = (
+	f32 <- 56.0 + f64;
 );

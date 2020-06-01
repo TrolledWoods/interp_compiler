@@ -29,10 +29,13 @@ op_data!(
 	">=" => order: 4, dir: LeftToRight,
 	"&"  => order: 5, dir: LeftToRight,
 	"|"  => order: 6, dir: LeftToRight,
-	"+"  => order: 7, dir: RightToLeft,
+	"+"  => order: 7, dir: LeftToRight,
 	"-"  => order: 7, dir: LeftToRight,
 	"*"  => order: 8, dir: LeftToRight,
 	"/"  => order: 8, dir: LeftToRight,
+
+	// The casting operator
+	"<-"  => order: 9, dir: RightToLeft,
 );
 
 #[cfg(test)]

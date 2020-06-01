@@ -462,6 +462,7 @@ const RESERVED_CHARACTERS: &[(&str, TokenKind)] = {
         ("+", Operator("+")),
         ("-", Operator("-")),
         ("*", Operator("*")),
+        ("<-", Operator("<-")),
         ("[-]", Special("[-]")),
         ("[?]", Special("[?]")),
         ("<", Operator("<")),
