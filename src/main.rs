@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused)]
-#![feature(test)]
+#![feature(box_syntax)]
 
 #[macro_use]
 extern crate lazy_static;

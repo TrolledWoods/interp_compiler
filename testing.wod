@@ -5,5 +5,28 @@ const Vec[T: type]: type = {
 };
 
 const MoreTests = (
-	const Inside: type = f32;
+	const Inside: i32 = 25;
+
+	let x: i32 = 26;
+	let y: i32 = 24;
+
+	// y: i32 = 
+	// 	map x: 
+	// 	25 => 2, 
+	// 	_  => x;
+	// z: i32 =
+	// 	map x:
+	// 	// Wrapping the map in parenthesees can
+	// 	// help clear any ambiguous code
+	// 	25 => (map y: 60 => 20, _=> 5),
+	// 	_  => 20;
+
+	// if 25 == x ( 25 );
+	//
+	// Ambiguous!!!!
+	// Is this a function call, or a block of code?
+	// Cannot say, therefore, we have to do special syntax
+	// in ifs.
+
+
 );

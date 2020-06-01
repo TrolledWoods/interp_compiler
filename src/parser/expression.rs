@@ -46,10 +46,11 @@ pub enum Node {
     /// A declaration. This will return some weird type,
     /// that can never be used. So this behaves as a
     /// statement, because it cannot be used as an
-    /// expression. Clever ;D
+    /// expression.
     Declaration {
         name: TinyString,
-        type_expr: Box<Expression>,
+        type_expr: Option<Box<Expression>>,
+		value: Box<Expression>,
     },
 
     /// The first expression is the l-value, the right

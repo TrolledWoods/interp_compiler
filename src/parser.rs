@@ -453,14 +453,48 @@ fn parse_block(
 				continue;
 			},
 			Token { kind: Keyword("let"), .. } => {
-				todo!("Declaration");
-				continue;
-			},
-			_ => (),
-		}
+				let pos = parser.next_token()?.pos;
+				let name = parse_identifier(
+					parser, 
+					"let [name]: type = value",
+				)?.name;
 
-        let expr = parse_expression(parser, namespace_id)?;
-        commands.push(expr);
+				let type_expr = if parser
+					.try_kind(TokenKind::Special(":"))?
+				{
+					Some(box parse_expression(
+						parser, 
+						namespace_id,
+					)?)
+				} else {
+					None
+				};
+
+				parser.kind(
+					AssignOperator(""),
+					"let name: type = value;",
+				)?;
+
+				let value = box parse_expression(
+					parser, 
+					namespace_id,
+				)?;
+
+				commands.push(Expression {
+					pos: Some(pos),
+					kind: Node::Declaration {
+						name,
+						type_expr,
+						value,
+					},
+				});
+			},
+			_ => {
+				let expr = 
+					parse_expression(parser, namespace_id)?;
+				commands.push(expr);
+			},
+		}
 
         match parser.next_token()? {
             Token { kind: Special(";"), ..  } => (),
