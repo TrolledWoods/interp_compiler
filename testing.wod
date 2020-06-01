@@ -1,2 +1,9 @@
-Hello[T: type, V: f32] :: 23.0;
-Woah[] :: Hello[f32, f64, char_8];
+const Vec[T: type]: type = { 
+	buffer: *T, 
+	capacity: u64, 
+	length: u64,
+};
+
+const MoreTests = (
+	const Inside: type = f32;
+);

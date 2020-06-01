@@ -14,6 +14,7 @@ use lexer::{
 };
 use std::collections::BTreeMap;
 use std::io::Error as IoError;
+use std::fmt;
 
 #[derive(Debug)]
 pub enum CodeUnit {
@@ -38,10 +39,25 @@ pub enum CodeUnit {
     },
 }
 
-#[derive(Debug)]
 struct Parser<'a> {
     lexer: Lexer<'a>,
+	/// Yes, this is crap, but it won't be called too often,
+	/// so it should be fine.
+	add_code_unit: &'a dyn Fn(CodeUnit),
     namespace_id_builder: &'a IdBuilder,
+}
+
+impl fmt::Debug for Parser<'_> {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		f
+			.debug_struct("Parser")
+			.field("lexer", &self.lexer)
+			.field(
+				"namespace_id_builder", 
+				&self.namespace_id_builder
+			)
+			.finish()
+	}
 }
 
 impl Parser<'_> {
@@ -129,7 +145,7 @@ pub fn parse_file(
     file: TinyString,
     namespace_ids: &IdBuilder,
     namespace_id: Id,
-    code_unit_callback: impl FnMut(CodeUnit),
+    code_unit_callback: impl Fn(CodeUnit) + Sync,
 ) -> ParsingResult<()> {
     let source = std::fs::read_to_string(path)?;
     let mut lexer = Lexer::new(file, &source);
@@ -137,6 +153,7 @@ pub fn parse_file(
     let mut parser = Parser {
         lexer,
         namespace_id_builder: namespace_ids,
+		add_code_unit: &code_unit_callback,
     };
 
     parse_namespace(&mut parser, namespace_id, false)?;
@@ -186,9 +203,16 @@ fn parse_namespace(
 fn parse_constant(
     parser: &mut Parser,
     namespace_id: Id,
-) -> ParsingResult<CodeUnit> {
+) -> ParsingResult<()> {
+	use TokenKind::*;
+
     const PATTERN: &str = "<name>[a: <const_arg>] : \
                            <optional type> : <value>;";
+
+	parser.kind(
+		Keyword("const"), 
+		"const needed for constant",
+	)?;
 
     // All of these are basically just constants
     let name = parse_identifier(parser, PATTERN)?;
@@ -207,37 +231,36 @@ fn parse_constant(
 		BTreeMap::new() 
 	};
 
-    // Parse the ``: <optional type> :`` part.
-    parser.kind(TokenKind::Special(":"), PATTERN)?;
-
     // If we don't have another ':' immediately after,
     // then we know we have a type, and then another ':'.
-    let type_expr = if !parser
+    let type_expr = if parser
         .try_kind(TokenKind::Special(":"))?
     {
-        let expression =
-            parse_expression(parser, namespace_id)?;
-
-        parser.kind(TokenKind::Special(":"), PATTERN)?;
-
-        Some(expression)
+        Some(parse_expression(parser, namespace_id)?)
     } else {
         None
     };
+
+	parser.kind(
+		AssignOperator(""), 
+		"Wanted assignemnt operator",
+	)?;
 
     // Parse the actual value.
     let value = parse_expression(parser, namespace_id)?;
 
     parser.kind(TokenKind::Special(";"), PATTERN)?;
 
-    Ok(CodeUnit::Constant {
+	(parser.add_code_unit)(CodeUnit::Constant {
         pos: name.pos,
         namespace: namespace_id,
         name: name.name,
         const_args,
         type_expression: type_expr,
         value,
-    })
+    });
+
+	Ok(())
 }
 
 fn parse_expression(
@@ -291,10 +314,8 @@ fn parse_value(
                 ),
             }
         }
-        TokenKind::Bracket('(') => {
-            // Block!
-            parse_block(parser, namespace_id)?
-        }
+        TokenKind::Bracket('(') => 
+            parse_block(parser, namespace_id)?,
         TokenKind::Bracket('{') => {
             // Collection!
             let mut list = BTreeMap::new();
@@ -409,6 +430,9 @@ fn parse_block(
     parser: &mut Parser,
     namespace_id: Id,
 ) -> ParsingResult<Expression> {
+	use TokenKind::*;
+	use Error::*;
+
     let namespace_id =
         parser.create_sub_namespace(namespace_id);
 
@@ -419,27 +443,33 @@ fn parse_block(
 
     let mut commands = Vec::new();
     let (is_expression, end) = loop {
-        if let Some(end) = parser
-            .maybe_kind(TokenKind::ClosingBracket('('))?
-        {
-            break (false, end);
-        }
+		match parser.peek_token(0)? {
+			Token { pos, kind: ClosingBracket('(') } => {
+				parser.next_token();
+				break (false, pos)
+			},
+			Token { kind: Keyword("const"), .. } => {
+				parse_constant(parser, namespace_id)?;
+				continue;
+			},
+			Token { kind: Keyword("let"), .. } => {
+				todo!("Declaration");
+				continue;
+			},
+			_ => (),
+		}
 
         let expr = parse_expression(parser, namespace_id)?;
         commands.push(expr);
 
         match parser.next_token()? {
+            Token { kind: Special(";"), ..  } => (),
             Token {
-                kind: TokenKind::Special(";"),
-                ..
-            } => (),
-            Token {
-                kind:
-                    TokenKind::ClosingBracket(bracket_kind),
+                kind: ClosingBracket(bracket_kind),
                 pos,
             } => break (true, pos),
             Token { pos, kind } => {
-                return Err(Error::InvalidToken {
+                return Err(InvalidToken {
                     pos,
                     got: kind,
                     pattern: "( code; code; ... code here \
@@ -450,6 +480,8 @@ fn parse_block(
         }
     };
 
+	// TODO: If it's an expression, and there is only one
+	// element in contents, we can just not have the block.
     Ok(Expression {
         pos: Some(start.join(end)),
         kind: Node::Block {

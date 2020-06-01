@@ -408,6 +408,8 @@ const RESERVED_WORDS: &[(&str, TokenKind)] = {
         ("if", Keyword("if")),
         ("else", Keyword("else")),
         ("unique", Keyword("unique")),
+        ("const", Keyword("const")),
+        ("let", Keyword("let")),
         // Primitive types(yes, these are also reserved
         // words)
         ("char_8", Primitive(PrimitiveKind::Char8)),
