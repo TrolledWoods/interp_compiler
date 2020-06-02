@@ -6,22 +6,22 @@
 mod expression;
 mod lexer;
 
+use crate::operators::{get_operator_info, OpDirection};
 use crate::prelude::*;
-use crate::operators::{ OpDirection, get_operator_info };
 use expression::prelude::*;
 use lexer::{
     Error as LexingError, Lexer, LexingResult, Token,
     TokenKind,
 };
 use std::collections::BTreeMap;
-use std::io::Error as IoError;
 use std::fmt;
+use std::io::Error as IoError;
 
 macro_rules! error {
-	($value:expr) => {{
-		println!("{}: {}:{}", file!(), line!(), column!());
-		$value
-	}}
+    ($value:expr) => {{
+        println!("{}: {}:{}", file!(), line!(), column!());
+        $value
+    }};
 }
 
 #[derive(Debug)]
@@ -49,23 +49,22 @@ pub enum CodeUnit {
 
 struct Parser<'a> {
     lexer: Lexer<'a>,
-	/// Yes, this is crap, but it won't be called too often,
-	/// so it should be fine.
-	add_code_unit: &'a dyn Fn(CodeUnit),
+    /// Yes, this is crap, but it won't be called too
+    /// often, so it should be fine.
+    add_code_unit: &'a dyn Fn(CodeUnit),
     namespace_id_builder: &'a IdBuilder,
 }
 
 impl fmt::Debug for Parser<'_> {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		f
-			.debug_struct("Parser")
-			.field("lexer", &self.lexer)
-			.field(
-				"namespace_id_builder", 
-				&self.namespace_id_builder
-			)
-			.finish()
-	}
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Parser")
+            .field("lexer", &self.lexer)
+            .field(
+                "namespace_id_builder",
+                &self.namespace_id_builder,
+            )
+            .finish()
+    }
 }
 
 impl Parser<'_> {
@@ -161,7 +160,7 @@ pub fn parse_file(
     let mut parser = Parser {
         lexer,
         namespace_id_builder: namespace_ids,
-		add_code_unit: &code_unit_callback,
+        add_code_unit: &code_unit_callback,
     };
 
     parse_namespace(&mut parser, namespace_id, false)?;
@@ -212,21 +211,21 @@ fn parse_constant(
     parser: &mut Parser,
     namespace_id: Id,
 ) -> ParsingResult<()> {
-	use TokenKind::*;
+    use TokenKind::*;
 
     const PATTERN: &str = "<name>[a: <const_arg>] : \
                            <optional type> : <value>;";
 
-	parser.kind(
-		Keyword("const"), 
-		"const needed for constant",
-	)?;
+    parser.kind(
+        Keyword("const"),
+        "const needed for constant",
+    )?;
 
     // All of these are basically just constants
     let name = parse_identifier(parser, PATTERN)?;
 
-    let const_args = if 
-		parser.peek_token(0)?.kind == TokenKind::Bracket('[')
+    let const_args = if parser.peek_token(0)?.kind
+        == TokenKind::Bracket('[')
     {
         let (pos, list) = parse_named_or_unnamed_list(
             parser,
@@ -234,32 +233,31 @@ fn parse_constant(
             |parser| parse_expression(parser, namespace_id),
         )?;
 
-		list.into_named(pos)?
-    } else { 
-		BTreeMap::new() 
-	};
+        list.into_named(pos)?
+    } else {
+        BTreeMap::new()
+    };
 
     // If we don't have another ':' immediately after,
     // then we know we have a type, and then another ':'.
-    let type_expr = if parser
-        .try_kind(TokenKind::Special(":"))?
-    {
-        Some(parse_expression(parser, namespace_id)?)
-    } else {
-        None
-    };
+    let type_expr =
+        if parser.try_kind(TokenKind::Special(":"))? {
+            Some(parse_expression(parser, namespace_id)?)
+        } else {
+            None
+        };
 
-	parser.kind(
-		AssignOperator(""), 
-		"Wanted assignemnt operator",
-	)?;
+    parser.kind(
+        AssignOperator(""),
+        "Wanted assignemnt operator",
+    )?;
 
     // Parse the actual value.
     let value = parse_expression(parser, namespace_id)?;
 
     parser.kind(TokenKind::Special(";"), PATTERN)?;
 
-	(parser.add_code_unit)(CodeUnit::Constant {
+    (parser.add_code_unit)(CodeUnit::Constant {
         pos: name.pos,
         namespace: namespace_id,
         name: name.name,
@@ -268,7 +266,7 @@ fn parse_constant(
         value,
     });
 
-	Ok(())
+    Ok(())
 }
 
 fn parse_expression(
@@ -283,51 +281,59 @@ fn parse_expression_req(
     namespace_id: Id,
     max_order: u8,
 ) -> ParsingResult<Expression> {
-	use TokenKind::*;
+    use TokenKind::*;
 
     let mut value = parse_value(parser, namespace_id)?;
 
-	loop {
-		match parser.peek_token(0)? {
-			Token { kind: Operator(op), pos } => {
-				use OpDirection::*;
-				let (order, dir) = 
-					get_operator_info(op)
-					.expect(
-						"Operators from the lexer \
-						should be valid"
-					);
+    loop {
+        match parser.peek_token(0)? {
+            Token {
+                kind: Operator(op),
+                pos,
+            } => {
+                use OpDirection::*;
+                let (order, dir) = get_operator_info(op)
+                    .expect(
+                        "Operators from the lexer should \
+                         be valid",
+                    );
 
-				match dir {
-					LeftToRight if order <= max_order => 
-						{ break },
-					RightToLeft if order < max_order =>
-						{ break }
-					_ => (),
-				}
+                match dir {
+                    LeftToRight if order <= max_order => {
+                        break
+                    }
+                    RightToLeft if order < max_order => {
+                        break
+                    }
+                    _ => (),
+                }
 
-				parser.next_token()?;
-				
-				let new_value = parse_expression_req(
-					parser,
-					namespace_id,
-					order,
-				)?;
+                parser.next_token()?;
 
-				value = Expression {
-					pos: Some(pos),
-					kind: Node::BinaryOperator(
-						op,
-						box match dir {
-							LeftToRight => (value, new_value),
-							RightToLeft => (new_value, value),
-						},
-					)
-				};
-			}
-			_ => break,
-		}
-	}
+                let new_value = parse_expression_req(
+                    parser,
+                    namespace_id,
+                    order,
+                )?;
+
+                value = Expression {
+                    pos: Some(pos),
+                    kind: Node::BinaryOperator(
+                        op,
+                        box match dir {
+                            LeftToRight => {
+                                (value, new_value)
+                            }
+                            RightToLeft => {
+                                (new_value, value)
+                            }
+                        },
+                    ),
+                };
+            }
+            _ => break,
+        }
+    }
 
     Ok(value)
 }
@@ -367,10 +373,12 @@ fn parse_value(
                 ),
             }
         }
-		TokenKind::Keyword("map") => 
-			parse_map(parser, namespace_id)?,
-        TokenKind::Bracket('(') => 
-            parse_block(parser, namespace_id)?,
+        TokenKind::Keyword("map") => {
+            parse_map(parser, namespace_id)?
+        }
+        TokenKind::Bracket('(') => {
+            parse_block(parser, namespace_id)?
+        }
         TokenKind::Bracket('{') => {
             // Collection!
             let mut list = BTreeMap::new();
@@ -482,75 +490,77 @@ fn parse_value(
 }
 
 fn parse_map(
-	parser: &mut Parser,
-	namespace_id: Id,
+    parser: &mut Parser,
+    namespace_id: Id,
 ) -> ParsingResult<Expression> {
-	use TokenKind::*;
-	use Error::*;
+    use Error::*;
+    use TokenKind::*;
 
-	let start = parser.kind
-		(Keyword("map"), "map has to have a keyword!")?;
+    let start = parser.kind(
+        Keyword("map"),
+        "map has to have a keyword!",
+    )?;
 
-	let input = if !parser.try_kind(Special(":"))? {
-		let input = parse_expression(parser, namespace_id)?;
-		parser.kind(
-			Special(":"), 
-			"map [expr]: [const_expr] => [value], \
-			_ => [value]",
-		)?;
-		Some(input)
-	} else {
-		None
-	};
+    let input = if !parser.try_kind(Special(":"))? {
+        let input = parse_expression(parser, namespace_id)?;
+        parser.kind(
+            Special(":"),
+            "map [expr]: [const_expr] => [value], _ => \
+             [value]",
+        )?;
+        Some(input)
+    } else {
+        None
+    };
 
-	let mut branches = vec![];
-	loop {
-		// The default value
-		if parser.try_kind(Special("_"))? {
-			parser.kind(
-				Special("=>"),
-				"[parsing map] Got a '_', so expected the \
-				pattern '_ => [value]' for a default value, \
-				but didn't get the '=>'",
-			)?;
+    let mut branches = vec![];
+    loop {
+        // The default value
+        if parser.try_kind(Special("_"))? {
+            parser.kind(
+                Special("=>"),
+                "[parsing map] Got a '_', so expected the \
+                 pattern '_ => [value]' for a default \
+                 value, but didn't get the '=>'",
+            )?;
 
-			let value = 
-				parse_expression(parser, namespace_id)?;
-			branches.push((None, value));
-			break;
-		}
+            let value =
+                parse_expression(parser, namespace_id)?;
+            branches.push((None, value));
+            break;
+        }
 
-		let key = parse_expression(parser, namespace_id)?;
+        let key = parse_expression(parser, namespace_id)?;
 
-		parser.kind(
-			Special("=>"),
-			"[parsing map] Didn't get a '=>' that was \
-			expected. Note that you need a \
-			'_ => [default value]' branch at the end to 
-			close the map"
-		)?;
+        parser.kind(
+            Special("=>"),
+            "[parsing map] Didn't get a '=>' that was \
+             expected. Note that you need a '_ => \
+             [default value]' branch at the end to \
+			close the map",
+        )?;
 
-		let value = parse_expression(parser, namespace_id)?;
-		branches.push((Some(key), value));
+        let value = parse_expression(parser, namespace_id)?;
+        branches.push((Some(key), value));
 
-		parser.kind(
-			Special(","),
-			"map needs ',' to separate elements",
-		)?;
-	}
+        parser.kind(
+            Special(","),
+            "map needs ',' to separate elements",
+        )?;
+    }
 
-	Ok(Expression {
-		pos: Some(start),
-		kind: Node::Map(input.map(|v| box v), branches),
-	})
+    Ok(Expression {
+        pos: Some(start),
+        kind: Node::Map(input.map(|v| box v), branches),
+    })
 }
 
 fn parse_block(
     parser: &mut Parser,
     namespace_id: Id,
 ) -> ParsingResult<Expression> {
-	use TokenKind::*;
-	use Error::*;
+    use Error::*;
+    use TokenKind::*;
 
     let namespace_id =
         parser.create_sub_namespace(namespace_id);
@@ -562,80 +572,91 @@ fn parse_block(
 
     let mut commands = Vec::new();
     let (is_expression, end) = loop {
-		match parser.peek_token(0)? {
-			Token { pos, kind: ClosingBracket('(') } => {
-				parser.next_token();
-				break (false, pos)
-			},
-			Token { kind: Keyword("const"), .. } => {
-				parse_constant(parser, namespace_id)?;
-				continue;
-			},
-			Token { kind: Keyword("let"), .. } => {
-				let pos = parser.next_token()?.pos;
-				let name = parse_identifier(
-					parser, 
-					"let [name]: type = value",
-				)?.name;
+        match parser.peek_token(0)? {
+            Token {
+                pos,
+                kind: ClosingBracket('('),
+            } => {
+                parser.next_token();
+                break (false, pos);
+            }
+            Token {
+                kind: Keyword("const"),
+                ..
+            } => {
+                parse_constant(parser, namespace_id)?;
+                continue;
+            }
+            Token {
+                kind: Keyword("let"),
+                ..
+            } => {
+                let pos = parser.next_token()?.pos;
+                let name = parse_identifier(
+                    parser,
+                    "let [name]: type = value",
+                )?
+                .name;
 
-				let type_expr = if parser
-					.try_kind(TokenKind::Special(":"))?
-				{
-					Some(box parse_expression(
-						parser, 
-						namespace_id,
-					)?)
-				} else {
-					None
-				};
+                let type_expr = if parser
+                    .try_kind(TokenKind::Special(":"))?
+                {
+                    Some(box parse_expression(
+                        parser,
+                        namespace_id,
+                    )?)
+                } else {
+                    None
+                };
 
-				parser.kind(
-					AssignOperator(""),
-					"let name: type = value;",
-				)?;
+                parser.kind(
+                    AssignOperator(""),
+                    "let name: type = value;",
+                )?;
 
-				let value = box parse_expression(
-					parser, 
-					namespace_id,
-				)?;
+                let value = box parse_expression(
+                    parser,
+                    namespace_id,
+                )?;
 
-				commands.push(Expression {
-					pos: Some(pos),
-					kind: Node::Declaration {
-						name,
-						type_expr,
-						value,
-					},
-				});
-			},
-			_ => {
-				let expr = 
-					parse_expression(parser, namespace_id)?;
+                commands.push(Expression {
+                    pos: Some(pos),
+                    kind: Node::Declaration {
+                        name,
+                        type_expr,
+                        value,
+                    },
+                });
+            }
+            _ => {
+                let expr =
+                    parse_expression(parser, namespace_id)?;
 
-				match parser.peek_token(0)?.kind {
-					AssignOperator(op) => {
-						parser.next_token()?;
-						let right_expr =
-							parse_expression(
-								parser, 
-								namespace_id,
-							)?;
+                match parser.peek_token(0)?.kind {
+                    AssignOperator(op) => {
+                        parser.next_token()?;
+                        let right_expr = parse_expression(
+                            parser,
+                            namespace_id,
+                        )?;
 
-						commands.push(Expression {
-							pos: expr.pos,
-							kind: Node::Assignment(
-								op,
-								box (expr, right_expr),
-							),
-						});
-					}
-					_ => commands.push(expr),
-				}
-			},
-		}
+                        commands.push(Expression {
+                            pos: expr.pos,
+                            kind: Node::Assignment(
+                                op,
+                                box (expr, right_expr),
+                            ),
+                        });
+                    }
+                    _ => commands.push(expr),
+                }
+            }
+        }
 
         match parser.next_token()? {
-            Token { kind: Special(";"), ..  } => (),
+            Token {
+                kind: Special(";"), ..
+            } => (),
             Token {
                 kind: ClosingBracket(bracket_kind),
                 pos,
@@ -652,8 +673,8 @@ fn parse_block(
         }
     };
 
-	// TODO: If it's an expression, and there is only one
-	// element in contents, we can just not have the block.
+    // TODO: If it's an expression, and there is only one
+    // element in contents, we can just not have the block.
     Ok(Expression {
         pos: Some(start.join(end)),
         kind: Node::Block {
@@ -671,41 +692,43 @@ enum NamedOrUnnamedList<T> {
 }
 
 impl<T> NamedOrUnnamedList<T> {
-	/// If the list is named or empty, this will return the
-	/// elements. If the list is unnamed, it will return an
-	/// error.
-	///
-	/// The ``pos`` argument is to generate a better error
-	/// message.
-	fn into_named(self, pos: Pos) 
-		-> ParsingResult<BTreeMap<TinyString, (Pos, T)>> 
-	{
-		use NamedOrUnnamedList::*;
-		use Error::*;
-		match self {
-			Empty => Ok(BTreeMap::new()),
-			Named(map) => Ok(map),
-			Unnamed(_) => Err(ExpectedNamedList { pos })
-		}
-	}
+    /// If the list is named or empty, this will return the
+    /// elements. If the list is unnamed, it will return an
+    /// error.
+    ///
+    /// The ``pos`` argument is to generate a better error
+    /// message.
+    fn into_named(
+        self,
+        pos: Pos,
+    ) -> ParsingResult<BTreeMap<TinyString, (Pos, T)>> {
+        use Error::*;
+        use NamedOrUnnamedList::*;
+        match self {
+            Empty => Ok(BTreeMap::new()),
+            Named(map) => Ok(map),
+            Unnamed(_) => Err(ExpectedNamedList { pos }),
+        }
+    }
 
-	/// If the list is unnamed or empty, this will return the
-	/// elements. If the list is named, it will return an
-	/// error.
-	///
-	/// The ``pos`` argument is to generate a better error
-	/// message.
-	fn into_unnamed(self, pos: Pos) 
-		-> ParsingResult<Vec<T>> 
-	{
-		use NamedOrUnnamedList::*;
-		use Error::*;
-		match self {
-			Empty => Ok(vec![]),
-			Unnamed(elements) => Ok(elements),
-			Named(_) => Err(ExpectedUnnamedList { pos }),
-		}
-	}
+    /// If the list is unnamed or empty, this will return
+    /// the elements. If the list is named, it will
+    /// return an error.
+    ///
+    /// The ``pos`` argument is to generate a better error
+    /// message.
+    fn into_unnamed(
+        self,
+        pos: Pos,
+    ) -> ParsingResult<Vec<T>> {
+        use Error::*;
+        use NamedOrUnnamedList::*;
+        match self {
+            Empty => Ok(vec![]),
+            Unnamed(elements) => Ok(elements),
+            Named(_) => Err(ExpectedUnnamedList { pos }),
+        }
+    }
 }
 
 /// Parses a named or unnamed list, i.e.
@@ -722,9 +745,9 @@ fn parse_named_or_unnamed_list<'a, A>(
         &mut Parser<'a>,
     ) -> ParsingResult<A>,
 ) -> ParsingResult<(Pos, NamedOrUnnamedList<A>)> {
+    use Error::*;
+    use NamedOrUnnamedList::*;
     use TokenKind::*;
-	use NamedOrUnnamedList::*;
-	use Error::*;
 
     let start = parser.kind(
         Bracket(bracket_kind),
@@ -741,75 +764,89 @@ fn parse_named_or_unnamed_list<'a, A>(
         }
 
         match (
-			parser.peek_token(0)?, 
-			parser.peek_token(1)?,
-			&mut list,
-		) {
+            parser.peek_token(0)?,
+            parser.peek_token(1)?,
+            &mut list,
+        ) {
             // Named element
             (
-                Token { pos, kind: Identifier(name), },
-                Token { kind: Special(":"), .. },
-				Empty,
+                Token {
+                    pos,
+                    kind: Identifier(name),
+                },
+                Token {
+                    kind: Special(":"), ..
+                },
+                Empty,
             ) => {
                 parser.next_token().unwrap();
                 parser.next_token().unwrap();
                 let elem = parse_element(parser)?;
-				list = Named({
-					let mut map = BTreeMap::new();
-					map.insert(name, (pos, elem));
-					map
-				});
-			}
+                list = Named({
+                    let mut map = BTreeMap::new();
+                    map.insert(name, (pos, elem));
+                    map
+                });
+            }
             (
-                Token { pos, kind: Identifier(name), },
-                Token { kind: Special(":"), .. },
-				Named(map),
+                Token {
+                    pos,
+                    kind: Identifier(name),
+                },
+                Token {
+                    kind: Special(":"), ..
+                },
+                Named(map),
             ) => {
                 parser.next_token().unwrap();
                 parser.next_token().unwrap();
                 let elem = parse_element(parser)?;
-				map.insert(name, (pos, elem));
-			}
+                map.insert(name, (pos, elem));
+            }
             (
-                Token { pos, kind: Identifier(name), },
-                Token { kind: Special(":"), .. },
-				Unnamed(_),
-            ) => return Err(NamedItemInUnnamedList {
-				pos,
-			}),
+                Token {
+                    pos,
+                    kind: Identifier(name),
+                },
+                Token {
+                    kind: Special(":"), ..
+                },
+                Unnamed(_),
+            ) => {
+                return Err(NamedItemInUnnamedList { pos })
+            }
 
-			// Unnamed element
-			(_, _, Empty) =>
-				list = Unnamed(vec![parse_element(parser)?]),
-			(_, _, Unnamed(list)) =>
-				list.push(parse_element(parser)?),
-			(Token { pos, .. }, _, Named(_)) =>
-				return Err(UnnamedItemInNamedList {
-					pos,
-				}),
+            // Unnamed element
+            (_, _, Empty) => {
+                list = Unnamed(vec![parse_element(parser)?])
+            }
+            (_, _, Unnamed(list)) => {
+                list.push(parse_element(parser)?)
+            }
+            (Token { pos, .. }, _, Named(_)) => {
+                return Err(UnnamedItemInNamedList { pos })
+            }
         }
 
-		match parser.next_token()? {
-			Token {
-				pos,
-				kind: ClosingBracket(bracket_kind),
-			} => {
-				break pos;
-			}
-			Token {
-				kind: Special(","),
-				..
-			} => (),
-			Token {
-				pos,
-				kind,
-			} => return Err(InvalidToken {
-				pos,
-				got: kind,
-				pattern: "named/unnamed list stuff,",
-				expected: vec!["}", "]", ")", ","],
-			}),
-		}
+        match parser.next_token()? {
+            Token {
+                pos,
+                kind: ClosingBracket(bracket_kind),
+            } => {
+                break pos;
+            }
+            Token {
+                kind: Special(","), ..
+            } => (),
+            Token { pos, kind } => {
+                return Err(InvalidToken {
+                    pos,
+                    got: kind,
+                    pattern: "named/unnamed list stuff,",
+                    expected: vec!["}", "]", ")", ","],
+                })
+            }
+        }
     };
 
     Ok((start.join(end), list))
@@ -973,18 +1010,18 @@ pub enum Error {
         old_pos: Pos,
         name: TinyString,
     },
-	ExpectedNamedList {
-		pos: Pos,
-	},
-	ExpectedUnnamedList {
-		pos: Pos,
-	},
-	NamedItemInUnnamedList {
-		pos: Pos,
-	},
-	UnnamedItemInNamedList {
-		pos: Pos,
-	},
+    ExpectedNamedList {
+        pos: Pos,
+    },
+    ExpectedUnnamedList {
+        pos: Pos,
+    },
+    NamedItemInUnnamedList {
+        pos: Pos,
+    },
+    UnnamedItemInNamedList {
+        pos: Pos,
+    },
 }
 
 impl From<LexingError> for Error {

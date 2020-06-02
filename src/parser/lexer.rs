@@ -402,7 +402,7 @@ fn increment_pos(
 const RESERVED_WORDS: &[(&str, TokenKind)] = {
     use TokenKind::*;
     &[
-		// Keywords
+        // Keywords
         ("fn", Keyword("fn")),
         ("mod", Keyword("mod")),
         ("for", Keyword("for")),
@@ -412,10 +412,8 @@ const RESERVED_WORDS: &[(&str, TokenKind)] = {
         ("const", Keyword("const")),
         ("let", Keyword("let")),
         ("map", Keyword("map")),
-
-		// Special things
+        // Special things
         ("_", Special("_")),
-
         // Primitive types
         ("char_8", Primitive(PrimitiveKind::Char8)),
         ("char_16", Primitive(PrimitiveKind::Char16)),
@@ -463,7 +461,7 @@ const RESERVED_CHARACTERS: &[(&str, TokenKind)] = {
         ("<=", Operator("<=")),
         (">=", Operator(">=")),
         ("==", Operator("==")),
-		("&&", Operator("&&")),
+        ("&&", Operator("&&")),
         ("||", Operator("||")),
         ("=>", Special("=>")),
         ("=", AssignOperator("")),
