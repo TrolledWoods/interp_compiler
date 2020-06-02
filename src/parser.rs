@@ -290,13 +290,21 @@ fn parse_expression_req(
 	loop {
 		match parser.peek_token(0)? {
 			Token { kind: Operator(op), pos } => {
+				use OpDirection::*;
 				let (order, dir) = 
 					get_operator_info(op)
 					.expect(
 						"Operators from the lexer \
 						should be valid"
 					);
-				if order <= max_order { break }
+
+				match dir {
+					LeftToRight if order <= max_order => 
+						{ break },
+					RightToLeft if order < max_order =>
+						{ break }
+					_ => (),
+				}
 
 				parser.next_token()?;
 				
@@ -306,7 +314,6 @@ fn parse_expression_req(
 					order,
 				)?;
 
-				use OpDirection::*;
 				value = Expression {
 					pos: Some(pos),
 					kind: Node::BinaryOperator(
