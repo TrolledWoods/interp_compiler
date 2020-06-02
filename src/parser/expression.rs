@@ -97,7 +97,7 @@ impl fmt::Debug for Node {
 			Primitive(kind) => 
 				write!(f, "{:?}", kind),
 			UnaryOperator(op, expr) =>
-				write!(f, "{} {:?}", op, expr),
+				write!(f, "{}{:?}", op, expr),
 			BinaryOperator(op, box (a, b)) =>
 				write!(f, "({:?} {} {:?})", a, op, b),
 			ConstCall(id, name, args) =>
@@ -111,6 +111,7 @@ impl fmt::Debug for Node {
 					}
 					write!(f, "{:?}", arg)?;
 				}
+				write!(f, ")")?;
 				Ok(())
 			}
 			Declaration { name, type_expr, value } => {
@@ -122,7 +123,7 @@ impl fmt::Debug for Node {
 				Ok(())
 			}
 			Assignment(op, box (left, right)) => 
-				write!(f, "{:?} {} {:?}", left, op, right),
+				write!(f, "{:?} {}= {:?}", left, op, right),
 			IntLiteral(num) => write!(f, "{}", num),
 			FloatLiteral(num) => write!(f, "{}", num),
 			Block { contents, is_expression } => {
