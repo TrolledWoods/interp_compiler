@@ -57,6 +57,10 @@ pub enum Node {
 		value: Box<Expression>,
     },
 
+	/// The main branching system in this language.
+	Map(Option<Box<Expression>>, 
+		Vec<(Option<Expression>, Expression)>),
+
     /// The first expression is the l-value, the right
     /// expression is the r-value. Yes, there is no
     /// differenciation. That happens when
@@ -89,6 +93,16 @@ impl fmt::Debug for Node {
 			Collection(map) => {
 				f.debug_map().entries(
 					map.iter().map(|(k, (v1, v2))| (k, v2))
+				).finish()
+			}
+			Map(input, elements) => {
+				write!(f, "map")?;
+				if let Some(input) = input {
+					write!(f, " {:?}", input)?;
+				}
+				write!(f, ":")?;
+				f.debug_map().entries(
+					elements.iter().map(|(k, v)| (k, v))
 				).finish()
 			}
 			Unreachable => unreachable!(),

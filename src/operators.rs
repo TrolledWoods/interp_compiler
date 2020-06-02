@@ -27,6 +27,8 @@ op_data!(
 	"!=" => order: 3, dir: LeftToRight,
 	"<=" => order: 4, dir: LeftToRight,
 	">=" => order: 4, dir: LeftToRight,
+	"<"  => order: 4, dir: LeftToRight,
+	">"  => order: 4, dir: LeftToRight,
 	"&"  => order: 5, dir: LeftToRight,
 	"|"  => order: 6, dir: LeftToRight,
 	"+"  => order: 7, dir: LeftToRight,

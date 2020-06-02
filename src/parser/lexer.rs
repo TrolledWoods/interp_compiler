@@ -134,7 +134,7 @@ fn read_token(
     let start = *pos;
 
     match chars.clone().next() {
-        Some(c) if c.is_alphabetic() => {
+        Some(c) if c.is_alphabetic() || c == '_' => {
             for (name, token_kind) in RESERVED_WORDS {
                 if chars.as_str().starts_with(name) {
                     match chars.as_str()[name.len()..]
@@ -402,6 +402,7 @@ fn increment_pos(
 const RESERVED_WORDS: &[(&str, TokenKind)] = {
     use TokenKind::*;
     &[
+		// Keywords
         ("fn", Keyword("fn")),
         ("mod", Keyword("mod")),
         ("for", Keyword("for")),
@@ -410,8 +411,12 @@ const RESERVED_WORDS: &[(&str, TokenKind)] = {
         ("unique", Keyword("unique")),
         ("const", Keyword("const")),
         ("let", Keyword("let")),
-        // Primitive types(yes, these are also reserved
-        // words)
+        ("map", Keyword("map")),
+
+		// Special things
+        ("_", Special("_")),
+
+        // Primitive types
         ("char_8", Primitive(PrimitiveKind::Char8)),
         ("char_16", Primitive(PrimitiveKind::Char16)),
         ("char_32", Primitive(PrimitiveKind::Char32)),
@@ -451,7 +456,6 @@ const RESERVED_WORDS: &[(&str, TokenKind)] = {
 const RESERVED_CHARACTERS: &[(&str, TokenKind)] = {
     use TokenKind::*;
     &[
-        // Operators
         ("+=", AssignOperator("+")),
         ("-=", AssignOperator("-")),
         ("*=", AssignOperator("*")),
@@ -459,6 +463,9 @@ const RESERVED_CHARACTERS: &[(&str, TokenKind)] = {
         ("<=", Operator("<=")),
         (">=", Operator(">=")),
         ("==", Operator("==")),
+		("&&", Operator("&&")),
+        ("||", Operator("||")),
+        ("=>", Special("=>")),
         ("=", AssignOperator("")),
         ("/", Operator("/")),
         ("+", Operator("+")),

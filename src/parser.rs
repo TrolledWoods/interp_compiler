@@ -367,6 +367,8 @@ fn parse_value(
                 ),
             }
         }
+		TokenKind::Keyword("map") => 
+			parse_map(parser, namespace_id)?,
         TokenKind::Bracket('(') => 
             parse_block(parser, namespace_id)?,
         TokenKind::Bracket('{') => {
@@ -477,6 +479,70 @@ fn parse_value(
     }
 
     Ok(value.unwrap())
+}
+
+fn parse_map(
+	parser: &mut Parser,
+	namespace_id: Id,
+) -> ParsingResult<Expression> {
+	use TokenKind::*;
+	use Error::*;
+
+	let start = parser.kind
+		(Keyword("map"), "map has to have a keyword!")?;
+
+	let input = if !parser.try_kind(Special(":"))? {
+		let input = parse_expression(parser, namespace_id)?;
+		parser.kind(
+			Special(":"), 
+			"map [expr]: [const_expr] => [value], \
+			_ => [value]",
+		)?;
+		Some(input)
+	} else {
+		None
+	};
+
+	let mut branches = vec![];
+	loop {
+		// The default value
+		if parser.try_kind(Special("_"))? {
+			parser.kind(
+				Special("=>"),
+				"[parsing map] Got a '_', so expected the \
+				pattern '_ => [value]' for a default value, \
+				but didn't get the '=>'",
+			)?;
+
+			let value = 
+				parse_expression(parser, namespace_id)?;
+			branches.push((None, value));
+			break;
+		}
+
+		let key = parse_expression(parser, namespace_id)?;
+
+		parser.kind(
+			Special("=>"),
+			"[parsing map] Didn't get a '=>' that was \
+			expected. Note that you need a \
+			'_ => [default value]' branch at the end to 
+			close the map"
+		)?;
+
+		let value = parse_expression(parser, namespace_id)?;
+		branches.push((Some(key), value));
+
+		parser.kind(
+			Special(","),
+			"map needs ',' to separate elements",
+		)?;
+	}
+
+	Ok(Expression {
+		pos: Some(start),
+		kind: Node::Map(input.map(|v| box v), branches),
+	})
 }
 
 fn parse_block(
