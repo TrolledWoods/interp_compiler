@@ -415,20 +415,8 @@ const RESERVED_WORDS: &[(&str, TokenKind)] = {
         // Special things
         ("_", Special("_")),
         // Primitive types
-        ("char_8", Primitive(PrimitiveKind::Char8)),
-        ("char_16", Primitive(PrimitiveKind::Char16)),
         ("char_32", Primitive(PrimitiveKind::Char32)),
         ("char_64", Primitive(PrimitiveKind::Char64)),
-        ("u8", Primitive(PrimitiveKind::UInt8)),
-        ("u16", Primitive(PrimitiveKind::UInt16)),
-        ("u32", Primitive(PrimitiveKind::UInt32)),
-        ("u64", Primitive(PrimitiveKind::UInt64)),
-        ("i8", Primitive(PrimitiveKind::Int8)),
-        ("i16", Primitive(PrimitiveKind::Int16)),
-        ("i32", Primitive(PrimitiveKind::Int32)),
-        ("i64", Primitive(PrimitiveKind::Int64)),
-        ("f32", Primitive(PrimitiveKind::Float32)),
-        ("f64", Primitive(PrimitiveKind::Float64)),
         ("type", Primitive(PrimitiveKind::Type)),
     ]
 };

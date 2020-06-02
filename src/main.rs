@@ -13,6 +13,7 @@ mod pos;
 mod tiny_string;
 mod tree_structure;
 mod types;
+mod interp;
 
 /// Common imports that most things need.
 /// This is to make the imports at the top

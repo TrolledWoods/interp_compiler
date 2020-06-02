@@ -3,7 +3,7 @@
 //!
 //! ``parse_file`` parses a file, and is the most
 //! common public interface into the module.
-mod expression;
+pub mod expression;
 mod lexer;
 
 use crate::operators::{get_operator_info, OpDirection};
