@@ -154,7 +154,6 @@ fn read_token(
                                 pos,
                                 name.len(),
                             );
-                            println!("{}", name);
                             return Ok(Token {
                                 pos: Pos::new(
                                     file, start, *pos,
@@ -415,6 +414,8 @@ const RESERVED_WORDS: &[(&str, TokenKind)] = {
         // Special things
         ("_", Special("_")),
         // Primitive types
+        ("f32", Primitive(PrimitiveKind::Float32)),
+        ("f64", Primitive(PrimitiveKind::Float64)),
         ("char_32", Primitive(PrimitiveKind::Char32)),
         ("char_64", Primitive(PrimitiveKind::Char64)),
         ("type", Primitive(PrimitiveKind::Type)),

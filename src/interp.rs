@@ -34,6 +34,8 @@ pub fn interp(
 			let mut type_data = BTreeMap::new();
 			let mut is_type = true;
 
+			// We'll have to dynamically figure out
+			// whether or not this is a type.
 			for (key, (pos, value)) in map.iter_mut() {
 				let value = interp(
 					context,
@@ -72,6 +74,7 @@ pub enum Error {
 	NamespaceItemNotFound(Pos, Id, TinyString),
 }
 
+#[derive(Clone, Copy, Debug)]
 pub enum Primitive {
 	Float32(f32),
 	Float64(f64),
@@ -80,6 +83,7 @@ pub enum Primitive {
 	Type(u64),
 }
 
+#[derive(Debug)]
 pub struct Value {
 	_type: Type,
 	value: Vec<Primitive>,

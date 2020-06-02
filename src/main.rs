@@ -27,12 +27,32 @@ mod prelude {
 
 fn main() {
     let ids = id::IdBuilder::new();
+	let type_ids = types::TypeIds::new();
     parser::parse_file(
         "testing.wod",
         "testing".into(),
         &ids,
         ids.create_id(),
-        |unit| println!("{:#?}", unit),
+        |mut unit| {
+			use parser::CodeUnit;
+			match &mut unit {
+				CodeUnit::Constant { value, .. } => {
+					let context = interp::Context {
+						type_ids: &type_ids,
+					};
+					let val = interp::interp(
+						context,
+						value,
+						&mut |_, _| Err(
+							interp::GetError::UnknownName
+						),
+					).unwrap();
+					println!("{:?}", val);
+				},
+				_ => (),
+			}
+			println!("{:#?}", unit);
+		},
     )
     .unwrap();
 }
